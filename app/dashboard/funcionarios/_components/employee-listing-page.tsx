@@ -41,7 +41,11 @@ export default function EmployeeListingPage() {
         const companyName =
           companies.find((company) => company.id === employee.empresaId)
             ?.razaoSocial || 'Empresa desconhecida';
-        return { ...employee, companyName };
+        return {
+          ...employee,
+          companyName,
+          id: String(employee.id) // Convertendo o id para string
+        };
       });
       setMergedEmployees(merged);
     }
