@@ -8,7 +8,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -30,37 +29,54 @@ import {
   SidebarRail
 } from '@/components/ui/sidebar';
 import { navItems } from '@/constants/data';
-import {
-  BadgeCheck,
-  Bell,
-  ChevronRight,
-  ChevronsUpDown,
-  CreditCard,
-  GalleryVerticalEnd,
-  LogOut
-} from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { ChevronRight, ChevronsUpDown, LogOut, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import * as React from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Icons } from '../icons';
 
 export const company = {
-  name: 'Acme Inc',
-  logo: GalleryVerticalEnd,
-  plan: 'Enterprise'
+  name: 'Acerta+',
+  logo: Plus,
+  plan: 'ADMIN'
+};
+
+const session = {
+  user: {
+    name: '',
+    email: '',
+    image: ''
+  }
 };
 
 export default function AppSidebar() {
-  const { data: session } = useSession();
   const pathname = usePathname();
+
+  const router = useRouter();
+  <p>Carregando...</p>; // Tela de carregamento
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST', // Pode ser GET ou POST, dependendo da sua implementação no Next.js
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao fazer logout');
+      }
+    } catch (error) {
+      console.error('Erro durante o logout:', error);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex gap-2 py-2 text-sidebar-accent-foreground ">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <company.logo className="size-4" />
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-sidebar-primary-foreground">
+            <company.logo className="size-8" />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">{company.name}</span>
@@ -70,7 +86,7 @@ export default function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="overflow-x-hidden">
         <SidebarGroup>
-          <SidebarGroupLabel>Overview</SidebarGroupLabel>
+          <SidebarGroupLabel>Visão geral</SidebarGroupLabel>
           <SidebarMenu>
             {navItems.map((item) => {
               const Icon = item.icon ? Icons[item.icon] : Icons.logo;
@@ -143,12 +159,12 @@ export default function AppSidebar() {
                       alt={session?.user?.name || ''}
                     />
                     <AvatarFallback className="rounded-lg">
-                      {session?.user?.name?.slice(0, 2)?.toUpperCase() || 'CN'}
+                      {session?.user?.name?.slice(0, 2)?.toUpperCase() || 'AD'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {session?.user?.name || ''}
+                      {session?.user?.name || 'Acerta+ Admin'}
                     </span>
                     <span className="truncate text-xs">
                       {session?.user?.email || ''}
@@ -172,40 +188,27 @@ export default function AppSidebar() {
                       />
                       <AvatarFallback className="rounded-lg">
                         {session?.user?.name?.slice(0, 2)?.toUpperCase() ||
-                          'CN'}
+                          'AD'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold">
-                        {session?.user?.name || ''}
+                        {session?.user?.name || 'Acerta+ Admin'}
                       </span>
                       <span className="truncate text-xs">
                         {' '}
-                        {session?.user?.email || ''}
+                        {session?.user?.email || 'lucasgabrieljaci20@gmail.com'}
                       </span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <BadgeCheck />
-                    Account
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <CreditCard />
-                    Billing
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Bell />
-                    Notifications
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-red-500"
+                  onClick={handleLogout}
+                >
                   <LogOut />
-                  Log out
+                  Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -1,4 +1,3 @@
-import { auth } from '@/auth';
 import Providers from '@/components/layout/providers';
 import { Toaster } from '@/components/ui/sonner';
 import type { Metadata } from 'next';
@@ -7,7 +6,7 @@ import NextTopLoader from 'nextjs-toploader';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Next Shadcn',
+  title: 'Acerta+',
   description: 'Basic dashboard with Next.js and Shadcn'
 };
 
@@ -22,7 +21,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
   return (
     <html
       lang="en"
@@ -31,8 +29,8 @@ export default async function RootLayout({
     >
       <body className={'overflow-hidden'}>
         <NextTopLoader showSpinner={false} />
-        <Providers session={session}>
-          <Toaster />
+        <Providers>
+          <Toaster position="top-right" expand={false} richColors />
           {children}
         </Providers>
       </body>

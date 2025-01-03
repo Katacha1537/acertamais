@@ -1,10 +1,8 @@
-import React from 'react';
-import { SidebarTrigger } from '../ui/sidebar';
-import { Separator } from '../ui/separator';
 import { Breadcrumbs } from '../breadcrumbs';
-import SearchInput from '../search-input';
-import { UserNav } from './user-nav';
+import { Separator } from '../ui/separator';
+import { SidebarTrigger } from '../ui/sidebar';
 import ThemeToggle from './ThemeToggle/theme-toggle';
+import { UserNav } from './user-nav';
 
 export default function Header() {
   return (
@@ -16,10 +14,12 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-2 px-4">
-        <div className="hidden md:flex">
+        {/* <div className="hidden md:flex">
           <SearchInput />
+        </div> */}
+        <div className="md:hidden">
+          <UserNav />
         </div>
-        <UserNav />
         <ThemeToggle />
       </div>
     </header>

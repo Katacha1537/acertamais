@@ -1,13 +1,5 @@
 'use client';
-import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -17,10 +9,6 @@ import {
   TableRow
 } from '@/components/ui/table';
 import {
-  DoubleArrowLeftIcon,
-  DoubleArrowRightIcon
-} from '@radix-ui/react-icons';
-import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -28,7 +16,6 @@ import {
   PaginationState,
   useReactTable
 } from '@tanstack/react-table';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { parseAsInteger, useQueryState } from 'nuqs';
 
 interface DataTableProps<TData, TValue> {
@@ -42,7 +29,7 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   totalItems,
-  pageSizeOptions = [10, 20, 30, 40, 50]
+  pageSizeOptions = [5, 10, 20, 30, 40, 50]
 }: DataTableProps<TData, TValue>) {
   const [currentPage, setCurrentPage] = useQueryState(
     'page',
@@ -52,7 +39,7 @@ export function DataTable<TData, TValue>({
     'limit',
     parseAsInteger
       .withOptions({ shallow: false, history: 'push' })
-      .withDefault(10)
+      .withDefault(5)
   );
 
   const paginationState = {
@@ -133,7 +120,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  Sem resultados.
                 </TableCell>
               </TableRow>
             )}
@@ -142,27 +129,27 @@ export function DataTable<TData, TValue>({
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      <div className="flex flex-col items-center justify-end gap-2 space-x-2 py-4 sm:flex-row">
+      {/* <div className="flex flex-col items-center justify-end gap-2 space-x-2 py-4 sm:flex-row">
         <div className="flex w-full items-center justify-between">
           <div className="flex-1 text-sm text-muted-foreground">
             {totalItems > 0 ? (
               <>
-                Showing{' '}
+                Mostrando{' '}
                 {paginationState.pageIndex * paginationState.pageSize + 1} to{' '}
                 {Math.min(
                   (paginationState.pageIndex + 1) * paginationState.pageSize,
                   totalItems
                 )}{' '}
-                of {totalItems} entries
+                de {totalItems} planos
               </>
             ) : (
-              'No entries found'
+              'Nenhum plano encontrado'
             )}
           </div>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
             <div className="flex items-center space-x-2">
               <p className="whitespace-nowrap text-sm font-medium">
-                Rows per page
+                Linhas por página
               </p>
               <Select
                 value={`${paginationState.pageSize}`}
@@ -191,7 +178,7 @@ export function DataTable<TData, TValue>({
                 Page {paginationState.pageIndex + 1} of {table.getPageCount()}
               </>
             ) : (
-              'No pages'
+              'Nenhuma página'
             )}
           </div>
           <div className="flex items-center space-x-2">
@@ -233,7 +220,7 @@ export function DataTable<TData, TValue>({
             </Button>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

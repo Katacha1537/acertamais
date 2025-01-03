@@ -92,7 +92,7 @@ export const users: User[] = [
 ];
 
 export type Employee = {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -108,6 +108,13 @@ export type Employee = {
   latitude?: number; // Optional field
   job: string;
   profile_picture?: string | null; // Profile picture can be a string (URL) or null (if no picture)
+};
+
+export type Plan = {
+  id: string; // Unique identifier for the plan
+  desconto: number; // Discount percentage
+  descricao: string; // Description of the plan
+  nome: string; // Name of the plan
 };
 
 export type Product = {
@@ -130,49 +137,65 @@ export const navItems: NavItem[] = [
     shortcut: ['d', 'd'],
     items: [] // Empty array as there are no child items for Dashboard
   },
+  // {
+  //   title: 'Clínicas',
+  //   url: '/dashboard/clinicas',
+  //   icon: 'plus',
+  //   shortcut: ['c', 'c'],
+  //   isActive: false,
+  //   items: [] // No child items
+  // },
   {
-    title: 'Employee',
-    url: '/dashboard/employee',
-    icon: 'user',
-    shortcut: ['e', 'e'],
-    isActive: false,
-    items: [] // No child items
-  },
-  {
-    title: 'Product',
-    url: '/dashboard/product',
-    icon: 'product',
+    title: 'Planos',
+    url: '/dashboard/planos',
+    icon: 'clipboardList',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [] // No child items
   },
   {
-    title: 'Account',
-    url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'billing',
-    isActive: true,
-
-    items: [
-      {
-        title: 'Profile',
-        url: '/dashboard/profile',
-        icon: 'userPen',
-        shortcut: ['m', 'm']
-      },
-      {
-        title: 'Login',
-        shortcut: ['l', 'l'],
-        url: '/',
-        icon: 'login'
-      }
-    ]
+    title: 'Empresa',
+    url: '/dashboard/empresas',
+    icon: 'building',
+    shortcut: ['b', 'b'],
+    isActive: false,
+    items: [] // No child items
   },
   {
-    title: 'Kanban',
-    url: '/dashboard/kanban',
-    icon: 'kanban',
-    shortcut: ['k', 'k'],
+    title: 'Funcionários',
+    url: '/dashboard/funcionarios',
+    icon: 'user',
+    shortcut: ['f', 'f'],
     isActive: false,
     items: [] // No child items
   }
+  // {
+  //   title: 'Account',
+  //   url: '#', // Placeholder as there is no direct link for the parent
+  //   icon: 'billing',
+  //   isActive: true,
+
+  //   items: [
+  //     {
+  //       title: 'Profile',
+  //       url: '/dashboard/profile',
+  //       icon: 'userPen',
+  //       shortcut: ['m', 'm']
+  //     },
+  //     {
+  //       title: 'Login',
+  //       shortcut: ['l', 'l'],
+  //       url: '/',
+  //       icon: 'login'
+  //     }
+  //   ]
+  // },
+  // {
+  //   title: 'Kanban',
+  //   url: '/dashboard/kanban',
+  //   icon: 'kanban',
+  //   shortcut: ['k', 'k'],
+  //   isActive: false,
+  //   items: [] // No child items
+  // }
 ];
