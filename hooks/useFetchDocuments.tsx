@@ -67,6 +67,7 @@ const useFetchDocuments = (collectionName: string, filters?: Filters) => {
         setDocuments(docs);
       }
     } catch (err: any) {
+      console.log(err);
       setError('Erro ao buscar documentos: ' + err.message);
     } finally {
       setLoading(false);

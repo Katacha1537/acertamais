@@ -128,6 +128,16 @@ export type Product = {
   updated_at: string;
 };
 
+export const roleRoutes: {
+  admin: string;
+  business: string;
+  accredited: string;
+} = {
+  admin: '/dashboard/overview',
+  business: '/dashboard/funcionarios',
+  accredited: '/dashboard/servicos'
+};
+
 export const navItems: NavItem[] = [
   {
     title: 'Dashboard',
@@ -166,6 +176,22 @@ export const navItems: NavItem[] = [
     url: '/dashboard/funcionarios',
     icon: 'user',
     shortcut: ['f', 'f'],
+    isActive: false,
+    items: [] // No child items
+  },
+  {
+    title: 'Crendenciados',
+    url: '/dashboard/credenciados',
+    icon: 'shildCheck',
+    shortcut: ['c', 'c'],
+    isActive: false,
+    items: [] // No child items
+  },
+  {
+    title: 'Serviços',
+    url: '/dashboard/servicos',
+    icon: 'package',
+    shortcut: ['p', 'p'],
     isActive: false,
     items: [] // No child items
   }

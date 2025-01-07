@@ -2,16 +2,22 @@
 import PageContainer from '@/components/layout/page-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
-import { Building, ClipboardList, Loader, Users } from 'lucide-react';
-import { RecentSales } from './recent-sales';
+import {
+  Box,
+  Building,
+  ClipboardList,
+  Loader,
+  ShieldCheck,
+  Users
+} from 'lucide-react';
 
 export default function OverViewPage() {
-  // Hook para pegar os dados das empresas
+  // Hooks para pegar os dados
   const { documents: empresas, loading, error } = useFetchDocuments('empresas');
-
-  // Você pode aplicar lógica similar para os planos e funcionários aqui
   const { documents: planos } = useFetchDocuments('planos');
   const { documents: funcionarios } = useFetchDocuments('funcionarios');
+  const { documents: credenciados } = useFetchDocuments('credenciados');
+  const { documents: servicos } = useFetchDocuments('servicos');
 
   if (loading) {
     return (
@@ -34,10 +40,11 @@ export default function OverViewPage() {
       <div className="space-y-2">
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">
-            Olá, Bem vindo de volta 👋
+            Olá, Bem-vindo de volta 👋
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/* Total empresas ativas */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -51,6 +58,8 @@ export default function OverViewPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Total planos */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -64,6 +73,8 @@ export default function OverViewPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Total funcionários */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -77,14 +88,34 @@ export default function OverViewPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-        <div className="grid grid-cols-1 gap-4">
-          <Card className="col-span-4 md:col-span-3">
-            <CardHeader>
-              <CardTitle>Funcionários Recentes</CardTitle>
+
+          {/* Total credenciados */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total credenciados
+              </CardTitle>
+              <ShieldCheck className="w-6" />
             </CardHeader>
             <CardContent>
-              <RecentSales funcionarios={funcionarios} />
+              <div className="text-2xl font-bold">
+                {credenciados ? `+${credenciados.length}` : '0'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Total serviços */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total serviços
+              </CardTitle>
+              <Box className="w-6" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {servicos ? `+${servicos.length}` : '0'}
+              </div>
             </CardContent>
           </Card>
         </div>

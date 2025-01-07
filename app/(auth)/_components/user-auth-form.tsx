@@ -9,6 +9,7 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useUser } from '@/context/UserContext';
 import { auth, db } from '@/service/firebase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -24,79 +25,81 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Endereço de e-mail inválido' }),
   password: z
     .string()
-    .min(8, { message: 'Senha precisa ter pelo menos 8 caracteres.' })
+    .min(6, { message: 'Senha precisa ter pelo menos 6 caracteres.' })
 });
+
+const roleRoutes = {
+  admin: '/dashboard/overview',
+  business: '/dashboard/funcionarios',
+  accredited: '/dashboard/servicos'
+};
 
 type UserFormValue = z.infer<typeof formSchema>;
 
 interface UserDocument {
   id: string;
-  email: string;
-  role: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+  uid: string | null;
+  role: 'business' | 'employee' | 'accredited' | 'admin'; // Tipando o role
   [key: string]: any; // Ajuste conforme a estrutura do seu documento
 }
-
 export default function UserAuthForm() {
-  const [userData, setUserData] = useState<UserDocument | null>(null); // Armazenar os dados do usuário
   const [loading, setLoading] = useState(false);
+  const { setUser } = useUser(); // Usando o hook useUser
   const form = useForm<UserFormValue>({
     resolver: zodResolver(formSchema)
   });
   const router = useRouter();
 
   // Função para buscar dados do usuário com base no email
-  const fetchUserData = async (email: string) => {
+  const fetchUserData = async (email: string): Promise<UserDocument | null> => {
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'funcionarios'),
-        where('email', '==', email)
-      ); // Corrigido para 'email' como string
+      const q = query(collection(db, 'users'), where('email', '==', email));
       const querySnapshot = await getDocs(q);
 
       // Mapeamento para preencher corretamente as propriedades
       const userDocs: UserDocument[] = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        email: doc.data().email, // Garantir que o campo 'email' exista
-        role: doc.data().role, // Garantir que o campo 'role' exista
-        ...doc.data() // Incluir outras propriedades do documento
+        email: doc.data().email,
+        displayName: doc.data().name,
+        photoURL: doc.data().photoURL,
+        role: doc.data().role,
+        uid: doc.data().uid,
+        ...doc.data()
       }));
 
       if (userDocs.length > 0) {
-        setUserData(userDocs[0]);
+        return userDocs[0]; // Retorna o primeiro usuário encontrado
       } else {
-        setUserData(null); // Se não encontrar o usuário, limpa o estado
+        return null; // Se não encontrar o usuário, retorna null
       }
     } catch (error) {
       console.error('Erro ao buscar dados do usuário:', error);
       toast.error('Erro ao buscar dados do usuário.');
-      setUserData(null);
+      return null;
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Lógica para verificar quando o campo de email perde o foco (onBlur)
-  const handleEmailBlur = () => {
-    const email = form.watch('email');
-    if (email) {
-      fetchUserData(email); // Busca os dados do usuário assim que o email perde o foco
     }
   };
 
   const onSubmit = async (data: UserFormValue) => {
     setLoading(true);
     try {
-      // Verifique se userData foi carregado e se contém dados
-      if (!userData) {
+      const userInfo = await fetchUserData(data.email); // Aguarda o retorno da Promise
+
+      // Verifique se userInfo foi carregado e se contém dados
+      if (!userInfo) {
         toast.error('Usuário não encontrado.');
         return;
       }
 
       // Verifique o papel do usuário
-      if (userData.role === 'user') {
+      if (userInfo.role === 'employee') {
         toast.error(
-          'Usuário não pode realizar o login. Você tem um papel de usuário.'
+          'Usuário não pode realizar o login. Funcionários não têm acesso ao painel admin.'
         );
         return;
       }
@@ -113,9 +116,12 @@ export default function UserAuthForm() {
       const payload = {
         email: user.email,
         uid: user.uid,
-        displayName: user.displayName || '',
+        role: userInfo.role,
+        displayName: user.displayName || userInfo.name || '',
         photoURL: user.photoURL || ''
       };
+
+      setUser(payload);
 
       // Envia o token para a API
       const response = await fetch('/api/auth/sign-in', {
@@ -132,9 +138,14 @@ export default function UserAuthForm() {
 
       // Exibe a mensagem de sucesso
       toast.success('Login realizado com sucesso!');
+      const route = roleRoutes[userInfo.role];
 
-      // Redireciona para a página de dashboard
-      router.push('/dashboard/overview');
+      if (route) {
+        router.push(route);
+      } else {
+        // Aqui você pode definir um comportamento padrão para quando o papel não corresponder a nenhum dos esperados
+        toast.error('Permisão inválida ou não encontrado');
+      }
     } catch (error: any) {
       // Tratamento de erros de autenticação
       if (error.code === 'auth/user-not-found') {
@@ -159,62 +170,56 @@ export default function UserAuthForm() {
   };
 
   return (
-    <>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="w-full space-y-2"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full space-y-2">
+        {/* Campo de Email */}
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input
+                  type="email"
+                  placeholder="Escreva seu email..."
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Campo de Senha */}
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Senha</FormLabel>
+              <FormControl>
+                <Input
+                  type="password"
+                  placeholder="**********"
+                  disabled={loading}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Botão de Enviar */}
+        <Button
+          disabled={loading}
+          className="ml-auto w-full text-white hover:bg-[#244777]"
+          type="submit"
         >
-          {/* Campo de Email */}
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="Escreva seu email..."
-                    {...field}
-                    onBlur={handleEmailBlur} // Adiciona a lógica de busca ao sair do foco
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Campo de Senha */}
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Senha</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="**********"
-                    disabled={loading}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Botão de Enviar */}
-          <Button
-            disabled={loading}
-            className="ml-auto w-full text-white hover:bg-[#244777]"
-            type="submit"
-          >
-            Continue
-          </Button>
-        </form>
-      </Form>
-    </>
+          Continue
+        </Button>
+      </form>
+    </Form>
   );
 }

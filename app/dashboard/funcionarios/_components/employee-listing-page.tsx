@@ -5,6 +5,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
 import { useUpdateContext } from '@/context/GlobalUpdateContext.tsx';
+import { useUser } from '@/context/UserContext';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
@@ -13,43 +14,57 @@ import { useEffect, useState } from 'react';
 import EmployeeTable from './employee-tables';
 
 export default function EmployeeListingPage() {
-  // Fetching employees and companies data using custom hooks
+  const { user } = useUser(); // Obtém o usuário atual
+
   const {
     documents: employees,
     fetchDocuments,
     loading: employeesLoading,
     error: employeesError
   } = useFetchDocuments('funcionarios');
+
   const {
     documents: companies,
     loading: companiesLoading,
     error: companiesError
   } = useFetchDocuments('empresas');
+
   const [mergedEmployees, setMergedEmployees] = useState<any[]>([]);
 
   const { updateFlag } = useUpdateContext();
+
   useEffect(() => {
     const fetchDoc = async () => {
+      console.log('Buscando dados...');
       await fetchDocuments();
     };
     fetchDoc();
   }, [updateFlag]);
 
   useEffect(() => {
-    if (employees && companies) {
-      const merged = employees.map((employee) => {
+    if (user && employees && companies) {
+      let filteredEmployees = employees;
+
+      if (user.role === 'business') {
+        filteredEmployees = employees.filter(
+          (employee) => employee.empresaId === user.uid
+        );
+      }
+      console.log(filteredEmployees);
+      const merged = filteredEmployees.map((employee) => {
         const companyName =
           companies.find((company) => company.id === employee.empresaId)
             ?.razaoSocial || 'Empresa desconhecida';
         return {
           ...employee,
           companyName,
-          id: String(employee.id) // Convertendo o id para string
+          id: String(employee.id)
         };
       });
+
       setMergedEmployees(merged);
     }
-  }, [employees, companies]);
+  }, [employees, user]);
 
   const totalEmployees = mergedEmployees?.length || 0;
 
@@ -71,7 +86,7 @@ export default function EmployeeListingPage() {
         </div>
         <Separator />
 
-        {/* Conditional rendering for loading or error */}
+        {/* Renderização condicional para loading ou erro */}
         {(employeesLoading || companiesLoading) && (
           <p>Carregando os dados...</p>
         )}

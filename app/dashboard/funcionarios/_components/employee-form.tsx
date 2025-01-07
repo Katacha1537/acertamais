@@ -17,11 +17,11 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { useUser } from '@/context/UserContext';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
-import { auth } from '@/service/firebase';
+import { createLogin } from '@/lib/createLogin';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -31,11 +31,9 @@ import * as z from 'zod';
 
 // Validação do Formulário
 const formSchema = z.object({
-  nome: z
-    .string()
-    .min(2, {
-      message: 'Nome do funcionário deve ter pelo menos 2 caracteres.'
-    }),
+  nome: z.string().min(2, {
+    message: 'Nome do funcionário deve ter pelo menos 2 caracteres.'
+  }),
   dataNascimento: z
     .string()
     .regex(
@@ -69,10 +67,12 @@ const formSchema = z.object({
       (val) => (val ? !isNaN(Number(val)) : true),
       'O número de pessoas na casa deve ser um número.'
     ),
-  empresaId: z.string().min(1, { message: 'Por favor, selecione a empresa.' })
+  empresaId: z.string().nullable().optional()
 });
 
 export default function FuncionarioForm() {
+  const { user } = useUser(); // Obtém o usuário atual
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -83,32 +83,13 @@ export default function FuncionarioForm() {
       email: '',
       telefone: '',
       pessoasNaCasa: '',
-      empresaId: ''
+      empresaId: user?.role === 'business' ? user.uid : undefined
     }
   });
 
   const { documents: empresas, loading } = useFetchDocuments('empresas');
-
   const [loadingOn, setLoadingOn] = useState(false);
-
   const router = useRouter();
-
-  const createEmployeeLogin = async (email: string) => {
-    const password = '123456789'; // Senha padrão gerada para o funcionário
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const uid = userCredential.user.uid;
-      return uid; // Retorna o UID do usuário criado
-    } catch (error) {
-      console.error('Erro ao criar o login:', error);
-      toast.error('Erro ao criar o login do funcionário.');
-      throw error; // Lança o erro para ser tratado onde a função for chamada
-    }
-  };
 
   const { addDocument, loading: addLoading } = useFirestore({
     collectionName: 'funcionarios',
@@ -125,15 +106,30 @@ export default function FuncionarioForm() {
     }
   });
 
+  const { addDocument: addUser } = useFirestore({
+    collectionName: 'users'
+  });
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setLoadingOn(true);
+    console.log('Valores enviados:', values);
+    const newValues = { ...values };
 
-    // Adiciona o campo "role" ao objeto values
-    const valuesWithRole = { ...values, role: 'user' };
+    if (user?.role === 'business' && user?.uid) {
+      newValues.empresaId = user.uid;
+    } else {
+      newValues.empresaId = '';
+    }
+    // Agora, você pode continuar o processo com o newValues
+    const userCreated = await createLogin(newValues.email);
+    const userInfo = {
+      uid: userCreated,
+      role: 'employee',
+      name: newValues.nome,
+      email: newValues.email
+    };
 
-    const user = await createEmployeeLogin(form.getValues('email'));
-
-    addDocument(valuesWithRole, user);
+    addUser(userInfo, null);
+    addDocument(newValues, userCreated);
   }
 
   return (
@@ -279,31 +275,64 @@ export default function FuncionarioForm() {
               />
 
               {/* Empresa */}
-              <FormField
-                control={form.control}
-                name="empresaId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Empresa</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a empresa" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {empresas.map((doc) => (
-                          <SelectItem key={doc.id} value={doc.id}>
-                            {doc.nomeFantasia}
+              {user?.role !== 'business' && (
+                <FormField
+                  control={form.control}
+                  name="empresaId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empresa</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a empresa" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {empresas.map((doc) => (
+                            <SelectItem key={doc.id} value={doc.id}>
+                              {doc.nomeFantasia}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              {user?.role === 'business' && (
+                <FormField
+                  control={form.control}
+                  name="empresaId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empresa</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a empresa" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem key={user.uid} value={user.uid || ''}>
+                            {user.displayName}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
+
             <Button disabled={loadingOn} type="submit">
               {loadingOn ? 'Criando Funcionário...' : 'Criar Funcionário'}
             </Button>

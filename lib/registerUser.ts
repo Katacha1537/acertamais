@@ -13,8 +13,6 @@ const registerUser = async (email: string, password: string, cpf: string) => {
 
     // Salvar CPF no Firestore
     await setDoc(doc(db, 'funcionarios', user.uid), { cpf });
-
-    console.log('User registered:', user);
   } catch (error) {
     console.error('Error registering user:', error);
   }

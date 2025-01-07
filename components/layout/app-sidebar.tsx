@@ -29,35 +29,24 @@ import {
   SidebarRail
 } from '@/components/ui/sidebar';
 import { navItems } from '@/constants/data';
+import { useUser } from '@/context/UserContext'; // Importe o hook do contexto do usuário
 import { ChevronRight, ChevronsUpDown, LogOut, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icons } from '../icons';
 
 export const company = {
-  name: 'Acerta+',
-  logo: Plus,
-  plan: 'ADMIN'
-};
-
-const session = {
-  user: {
-    name: '',
-    email: '',
-    image: ''
-  }
+  logo: Plus
 };
 
 export default function AppSidebar() {
   const pathname = usePathname();
-
   const router = useRouter();
-  <p>Carregando...</p>; // Tela de carregamento
-
+  const { user, loading, isAuthenticated } = useUser(); // Usando o hook useUser
   const handleLogout = async () => {
     try {
       const response = await fetch('/api/logout', {
-        method: 'POST', // Pode ser GET ou POST, dependendo da sua implementação no Next.js
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         }
@@ -66,10 +55,35 @@ export default function AppSidebar() {
       if (!response.ok) {
         throw new Error('Erro ao fazer logout');
       }
+
+      // Após o logout, redireciona para a página de login ou inicial
+      router.push('/');
     } catch (error) {
       console.error('Erro durante o logout:', error);
     }
   };
+
+  if (loading) {
+    return <p>Carregando...</p>; // Tela de carregamento enquanto os dados do usuário estão sendo carregados
+  }
+
+  // Função para filtrar os itens do menu com base no role
+  const filterNavItemsByRole = (items: typeof navItems) => {
+    if (!user?.role) return items;
+
+    switch (user.role) {
+      case 'business':
+        return items.filter((item) => item.title === 'Funcionários');
+      case 'accredited':
+        return items.filter((item) => item.title === 'Serviços');
+      case 'admin':
+        return items; // Admin tem acesso a todos
+      default:
+        return items;
+    }
+  };
+
+  const filteredNavItems = filterNavItemsByRole(navItems);
 
   return (
     <Sidebar collapsible="icon">
@@ -79,8 +93,8 @@ export default function AppSidebar() {
             <company.logo className="size-8" />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">{company.name}</span>
-            <span className="truncate text-xs">{company.plan}</span>
+            <span className="truncate font-semibold">ACERTA+</span>
+            <span className="truncate text-xs">Painel ADMIN</span>
           </div>
         </div>
       </SidebarHeader>
@@ -88,7 +102,7 @@ export default function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Visão geral</SidebarGroupLabel>
           <SidebarMenu>
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon ? Icons[item.icon] : Icons.logo;
               return item?.items && item?.items?.length > 0 ? (
                 <Collapsible
@@ -155,19 +169,19 @@ export default function AppSidebar() {
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage
-                      src={session?.user?.image || ''}
-                      alt={session?.user?.name || ''}
+                      src={user?.photoURL || ''} // Usando o contexto para a imagem do usuário
+                      alt={user?.displayName || ''} // Usando o contexto para o nome do usuário
                     />
                     <AvatarFallback className="rounded-lg">
-                      {session?.user?.name?.slice(0, 2)?.toUpperCase() || 'AD'}
+                      {user?.displayName?.slice(0, 2)?.toUpperCase() || 'AD'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {session?.user?.name || 'Acerta+ Admin'}
+                      {user?.displayName || 'Acerta+ Admin'}
                     </span>
                     <span className="truncate text-xs">
-                      {session?.user?.email || ''}
+                      {user?.email || ''}
                     </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
@@ -183,21 +197,19 @@ export default function AppSidebar() {
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
                       <AvatarImage
-                        src={session?.user?.image || ''}
-                        alt={session?.user?.name || ''}
+                        src={user?.photoURL || ''} // Usando o contexto para a imagem do usuário
+                        alt={user?.displayName || ''} // Usando o contexto para o nome do usuário
                       />
                       <AvatarFallback className="rounded-lg">
-                        {session?.user?.name?.slice(0, 2)?.toUpperCase() ||
-                          'AD'}
+                        {user?.displayName?.slice(0, 2)?.toUpperCase() || 'AD'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold">
-                        {session?.user?.name || 'Acerta+ Admin'}
+                        {user?.displayName || 'Acerta+ Admin'}
                       </span>
                       <span className="truncate text-xs">
-                        {' '}
-                        {session?.user?.email || 'lucasgabrieljaci20@gmail.com'}
+                        {user?.email || 'admin@acertamais.com'}
                       </span>
                     </div>
                   </div>

@@ -22,10 +22,12 @@ import {
   LucideShoppingBag,
   Moon,
   MoreVertical,
+  Package,
   Pizza,
   Plus,
   PlusIcon,
   Settings,
+  ShieldCheck,
   SunMedium,
   Trash,
   Twitter,
@@ -69,6 +71,8 @@ export const Icons = {
   pizza: Pizza,
   sun: SunMedium,
   moon: Moon,
+  shildCheck: ShieldCheck,
+  package: Package,
   laptop: Laptop,
   gitHub: ({ ...props }: LucideProps) => (
     <svg

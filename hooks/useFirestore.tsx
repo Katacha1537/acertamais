@@ -18,7 +18,6 @@ export function useFirestore<T extends { [key: string]: any }>({
 
   // Função para adicionar um documento
   const addDocument = async (data: T, userId: string | null) => {
-    console.log(userId);
     setLoading(true);
     try {
       if (userId) {

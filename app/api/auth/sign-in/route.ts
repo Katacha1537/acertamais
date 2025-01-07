@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
     const jwtSecret = process.env.SECRET_JWT;
 
     if (!jwtSecret) {
-      console.log('SECRET_JWT:', jwtSecret); // Verifica o valor da variável
       throw new Error('A variável SECRET_JWT não está definida.');
     }
 

@@ -10,6 +10,7 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useUser } from '@/context/UserContext';
 import { useFirestore } from '@/hooks/useFirestore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';

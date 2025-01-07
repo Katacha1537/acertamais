@@ -10,6 +10,7 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useUser } from '@/context/UserContext';
 import { useDocumentById } from '@/hooks/useDocumentById';
 import { useFirestore } from '@/hooks/useFirestore';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -33,8 +34,9 @@ const formSchema = z.object({
 });
 
 export default function PlanFormEdit() {
-  const params = useParams();
   const router = useRouter();
+
+  const params = useParams();
   const planId = Array.isArray(params.planId)
     ? params.planId[0]
     : params.planId;

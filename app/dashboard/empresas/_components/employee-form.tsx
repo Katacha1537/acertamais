@@ -17,10 +17,14 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { roleRoutes } from '@/constants/data';
+import { useUser } from '@/context/UserContext';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
+import { createLogin } from '@/lib/createLogin';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -33,6 +37,7 @@ const formSchema = z.object({
   nomeFantasia: z.string().min(2, {
     message: 'Nome Fantasia deve ter pelo menos 2 caracteres.'
   }),
+  emailAcess: z.string().email({ message: 'Email inválido.' }),
   cnpjCaepf: z.string().min(11, {
     message: 'CNPJ ou CAEPF deve ter pelo menos 11 caracteres.'
   }),
@@ -63,9 +68,6 @@ const formSchema = z.object({
       message: 'Telefone do Financeiro deve ter pelo menos 10 caracteres.'
     })
   }),
-  segmento: z.string().min(2, {
-    message: 'Segmento deve ter pelo menos 2 caracteres.'
-  }),
   planos: z.string().min(1, {
     message: 'Selecione um plano.'
   })
@@ -77,6 +79,7 @@ export default function EmpresaForm() {
     defaultValues: {
       razaoSocial: '',
       nomeFantasia: '',
+      emailAcess: '',
       cnpjCaepf: '',
       endereco: '',
       cep: '',
@@ -91,7 +94,6 @@ export default function EmpresaForm() {
         email: '',
         telefone: ''
       },
-      segmento: '',
       planos: ''
     }
   });
@@ -113,8 +115,20 @@ export default function EmpresaForm() {
     }
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    addDocument(values, null);
+  const { addDocument: addUser } = useFirestore({
+    collectionName: 'users'
+  });
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const user = await createLogin(values.emailAcess);
+    const userInfo = {
+      uid: user,
+      role: 'business',
+      name: values.nomeFantasia,
+      email: values.emailAcess
+    };
+    addUser(userInfo, null);
+    addDocument(values, user);
   }
 
   if (loading) return <div>Carregando...</div>;
@@ -157,6 +171,24 @@ export default function EmpresaForm() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="emailAcess"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email de acesso</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Digite o email de acesso"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="cnpjCaepf"
@@ -308,22 +340,6 @@ export default function EmpresaForm() {
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="segmento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Segmento</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Digite o segmento da empresa"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="planos"

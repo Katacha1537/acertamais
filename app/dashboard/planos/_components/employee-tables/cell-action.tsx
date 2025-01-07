@@ -36,7 +36,6 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     setLoading(true);
     try {
       const success = await deleteDocument(data.id); // Certifique-se de que a coleção está correta
-      console.log(success);
       if (success) {
         toast.success('Plano deletado com Sucesso!');
         setOpen(false);

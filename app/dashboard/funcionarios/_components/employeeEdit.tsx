@@ -9,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { roleRoutes } from '@/constants/data';
+import { useUser } from '@/context/UserContext';
 import { useDocumentById } from '@/hooks/useDocumentById';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
@@ -20,11 +22,9 @@ import * as z from 'zod';
 
 // Schema de validação semelhante ao do formulário de criação
 const formSchema = z.object({
-  nome: z
-    .string()
-    .min(2, {
-      message: 'Nome do funcionário deve ter pelo menos 2 caracteres.'
-    }),
+  nome: z.string().min(2, {
+    message: 'Nome do funcionário deve ter pelo menos 2 caracteres.'
+  }),
   dataNascimento: z
     .string()
     .regex(
