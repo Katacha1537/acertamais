@@ -22,7 +22,7 @@ export default function SignInViewPage() {
         Login
       </Link>
       <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-        <div className="absolute inset-0 bg-[#00AD99]" />
+        <div className="absolute inset-0 bg-[#003CA3]" />
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">
