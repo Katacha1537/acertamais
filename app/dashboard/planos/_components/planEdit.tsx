@@ -25,17 +25,14 @@ const formSchema = z.object({
   nome: z.string().min(2, {
     message: 'Nome do plano deve ter pelo menos 2 caracteres.'
   }),
-  desconto: z.number().min(0).max(100, {
-    message: 'Desconto deve ser um número entre 0 e 100.'
-  }),
   descricao: z.string().min(10, {
     message: 'Descrição deve ter pelo menos 10 caracteres.'
-  })
+  }),
+  accrediting_name: z.string().optional() // Torne opcional conforme necessário
 });
 
 export default function PlanFormEdit() {
   const router = useRouter();
-
   const params = useParams();
   const planId = Array.isArray(params.planId)
     ? params.planId[0]
@@ -57,12 +54,15 @@ export default function PlanFormEdit() {
     }
   });
 
+  const { user } = useUser(); // Obtém o usuário atual
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       nome: '',
-      desconto: 0,
-      descricao: ''
+      descricao: '',
+      accrediting_name:
+        user?.role === 'accrediting' ? user?.displayName || '' : undefined
     }
   });
 
@@ -71,14 +71,28 @@ export default function PlanFormEdit() {
     if (data) {
       form.reset({
         nome: data.nome || '',
-        desconto: data.desconto || 0,
-        descricao: data.descricao || ''
+        descricao: data.descricao || '',
+        accrediting_name:
+          user?.role === 'accrediting' ? user?.displayName || '' : undefined
       });
     }
-  }, [data, form]);
+  }, [data, form, user]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    updateDocument(planId, values);
+    // Verifica se o campo accrediting_name existe e é necessário, caso contrário, o omite
+    const dataToUpdate = {
+      ...values,
+      accrediting_Id: user?.uid // Atualiza com o ID do usuário atual
+    };
+
+    if (
+      dataToUpdate.accrediting_name === undefined ||
+      dataToUpdate.accrediting_name === null
+    ) {
+      delete dataToUpdate.accrediting_name;
+    }
+
+    updateDocument(planId, dataToUpdate);
   };
 
   return (
@@ -107,26 +121,6 @@ export default function PlanFormEdit() {
               />
               <FormField
                 control={form.control}
-                name="desconto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Desconto</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Digite o desconto"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
                 name="descricao"
                 render={({ field }) => (
                   <FormItem>
@@ -141,6 +135,25 @@ export default function PlanFormEdit() {
                   </FormItem>
                 )}
               />
+              {user?.role === 'accrediting' && (
+                <FormField
+                  control={form.control}
+                  name="accrediting_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Acreditador</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field} // 'field' already handles value and onChange
+                          disabled
+                          defaultValue={user?.displayName || ''} // Set default value if user.displayName is null
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <Button
               disabled={dataLoading || form.formState.isSubmitting}

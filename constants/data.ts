@@ -145,83 +145,81 @@ export const navItems: NavItem[] = [
     icon: 'dashboard',
     isActive: false,
     shortcut: ['d', 'd'],
-    items: [] // Empty array as there are no child items for Dashboard
-  },
-  // {
-  //   title: 'Clínicas',
-  //   url: '/dashboard/clinicas',
-  //   icon: 'plus',
-  //   shortcut: ['c', 'c'],
-  //   isActive: false,
-  //   items: [] // No child items
-  // },
-  {
-    title: 'Planos',
-    url: '/dashboard/planos',
-    icon: 'clipboardList',
-    shortcut: ['p', 'p'],
-    isActive: false,
-    items: [] // No child items
+    items: []
   },
   {
-    title: 'Empresa',
-    url: '/dashboard/empresas',
-    icon: 'building',
-    shortcut: ['b', 'b'],
-    isActive: false,
-    items: [] // No child items
-  },
-  {
-    title: 'Funcionários',
-    url: '/dashboard/funcionarios',
-    icon: 'user',
-    shortcut: ['f', 'f'],
-    isActive: false,
-    items: [] // No child items
-  },
-  {
-    title: 'Crendenciados',
-    url: '/dashboard/credenciados',
+    title: 'Crendenciadoras',
+    url: '#', // Placeholder as there is no direct link for the parent
     icon: 'shildCheck',
-    shortcut: ['c', 'c'],
-    isActive: false,
-    items: [] // No child items
+    isActive: true,
+
+    items: [
+      {
+        title: 'Listar credenciadoras',
+        url: '/dashboard/credenciadoras',
+        icon: 'shildCheck',
+        shortcut: ['c', 'c'],
+        isActive: false,
+        items: []
+      },
+      {
+        title: 'listar Planos',
+        url: '/dashboard/planos',
+        icon: 'clipboardList',
+        shortcut: ['p', 'p'],
+        isActive: false,
+        items: []
+      }
+    ]
   },
   {
-    title: 'Serviços',
-    url: '/dashboard/servicos',
-    icon: 'package',
-    shortcut: ['p', 'p'],
-    isActive: false,
-    items: [] // No child items
-  }
-  // {
-  //   title: 'Account',
-  //   url: '#', // Placeholder as there is no direct link for the parent
-  //   icon: 'billing',
-  //   isActive: true,
+    title: 'Empresas',
+    url: '#', // Placeholder as there is no direct link for the parent
+    icon: 'building',
+    isActive: true,
 
-  //   items: [
-  //     {
-  //       title: 'Profile',
-  //       url: '/dashboard/profile',
-  //       icon: 'userPen',
-  //       shortcut: ['m', 'm']
-  //     },
-  //     {
-  //       title: 'Login',
-  //       shortcut: ['l', 'l'],
-  //       url: '/',
-  //       icon: 'login'
-  //     }
-  //   ]
-  // },
-  // {
-  //   title: 'Kanban',
-  //   url: '/dashboard/kanban',
-  //   icon: 'kanban',
-  //   shortcut: ['k', 'k'],
-  //   isActive: false,
-  //   items: [] // No child items
-  // }
+    items: [
+      {
+        title: 'listar Empresas',
+        url: '/dashboard/empresas',
+        icon: 'building',
+        shortcut: ['b', 'b'],
+        isActive: false,
+        items: []
+      },
+      {
+        title: 'listar Funcionários',
+        url: '/dashboard/funcionarios',
+        icon: 'user',
+        shortcut: ['f', 'f'],
+        isActive: false,
+        items: []
+      }
+    ]
+  },
+  {
+    title: 'Credenciados',
+    url: '#', // Placeholder as there is no direct link for the parent
+    icon: 'package',
+    isActive: true,
+
+    items: [
+      {
+        title: 'listar Crendenciados',
+        url: '/dashboard/credenciados',
+        icon: 'shildCheck',
+        shortcut: ['c', 'c'],
+        isActive: false,
+        items: []
+      },
+      {
+        title: 'listar Serviços',
+        url: '/dashboard/servicos',
+        icon: 'package',
+        shortcut: ['p', 'p'],
+        isActive: false,
+        items: []
+      }
+    ]
+  }
 ];

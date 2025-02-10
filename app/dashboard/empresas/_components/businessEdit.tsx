@@ -17,14 +17,13 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { roleRoutes } from '@/constants/data';
 import { useUser } from '@/context/UserContext';
 import { useDocumentById } from '@/hooks/useDocumentById';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -37,6 +36,7 @@ const formSchema = z.object({
   nomeFantasia: z.string().min(2, {
     message: 'Nome Fantasia deve ter pelo menos 2 caracteres.'
   }),
+  emailAcess: z.string().email({ message: 'Email inválido.' }),
   cnpjCaepf: z.string().min(11, {
     message: 'CNPJ ou CAEPF deve ter pelo menos 11 caracteres.'
   }),
@@ -67,17 +67,16 @@ const formSchema = z.object({
       message: 'Telefone do Financeiro deve ter pelo menos 10 caracteres.'
     })
   }),
-  segmento: z.string().min(2, {
-    message: 'Segmento deve ter pelo menos 2 caracteres.'
-  }),
   planos: z.string().min(1, {
     message: 'Selecione um plano.'
-  })
+  }),
+  accrediting_name: z.string().optional()
 });
 
 export default function BusinessFormEdit() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useUser();
 
   // Garantir que businessId seja uma string
   const businessId = Array.isArray(params.businessId)
@@ -96,13 +95,13 @@ export default function BusinessFormEdit() {
     defaultValues: {
       razaoSocial: '',
       nomeFantasia: '',
+      emailAcess: '',
       cnpjCaepf: '',
       endereco: '',
       cep: '',
       numeroFuncionarios: 0,
       contatoRH: { nome: '', email: '', telefone: '' },
       contatoFinanceiro: { nome: '', email: '', telefone: '' },
-      segmento: '',
       planos: ''
     }
   });
@@ -112,14 +111,15 @@ export default function BusinessFormEdit() {
       form.reset({
         razaoSocial: data.razaoSocial,
         nomeFantasia: data.nomeFantasia,
+        emailAcess: data.emailAcess,
         cnpjCaepf: data.cnpjCaepf,
         endereco: data.endereco,
         cep: data.cep,
         numeroFuncionarios: data.numeroFuncionarios,
         contatoRH: data.contatoRH,
         contatoFinanceiro: data.contatoFinanceiro,
-        segmento: data.segmento,
-        planos: data.planos
+        planos: data.planos,
+        accrediting_name: data.accrediting_name || ''
       });
     }
   }, [data]);
@@ -130,10 +130,38 @@ export default function BusinessFormEdit() {
     error: planosError
   } = useFetchDocuments('planos');
 
+  const [filteredPlans, setFilteredPlans] = useState(planos);
+
+  // Filtra os planos se o user.role for 'accrediting'
+  useEffect(() => {
+    if (user?.role === 'accrediting') {
+      const filtered = planos?.filter(
+        (plan) => plan.accrediting_Id === user?.uid
+      );
+      setFilteredPlans(filtered);
+    } else {
+      setFilteredPlans(planos);
+    }
+  }, [planos, user?.role]);
+
   // Função de envio do formulário
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await updateDocument(businessId, values); // Atualiza a empresa no Firestore
+      const dataToSave = {
+        ...values,
+        accrediting_Id: user?.uid,
+        accrediting_name:
+          user?.role === 'accrediting' ? user?.displayName || null : undefined
+      };
+
+      if (
+        dataToSave.accrediting_name === undefined ||
+        dataToSave.accrediting_name === null
+      ) {
+        delete dataToSave.accrediting_name;
+      }
+
+      await updateDocument(businessId, dataToSave); // Atualiza a empresa no Firestore
       toast.success('Empresa atualizada com sucesso!');
       router.push('/dashboard/empresas');
     } catch (error) {
@@ -176,6 +204,22 @@ export default function BusinessFormEdit() {
                     <FormLabel>Nome Fantasia</FormLabel>
                     <FormControl>
                       <Input placeholder="Digite o nome fantasia" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="emailAcess"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email de acesso</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Digite o email de acesso"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -334,22 +378,6 @@ export default function BusinessFormEdit() {
             </div>
             <FormField
               control={form.control}
-              name="segmento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Segmento</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Digite o segmento da empresa"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="planos"
               render={({ field }) => (
                 <FormItem>
@@ -361,7 +389,7 @@ export default function BusinessFormEdit() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {planos.map((doc) => (
+                      {filteredPlans.map((doc) => (
                         <SelectItem key={doc.id} value={doc.id}>
                           {doc.nome} - {doc.descricao}
                         </SelectItem>
@@ -372,6 +400,25 @@ export default function BusinessFormEdit() {
                 </FormItem>
               )}
             />
+            {user?.role === 'accrediting' && (
+              <FormField
+                control={form.control}
+                name="accrediting_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Acreditador</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        disabled
+                        defaultValue={user?.displayName || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <Button disabled={dataLoading} type="submit">
               {dataLoading ? 'Atualizando Empresa...' : 'Atualizar Empresa'}
             </Button>

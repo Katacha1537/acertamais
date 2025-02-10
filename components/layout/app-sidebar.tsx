@@ -76,6 +76,17 @@ export default function AppSidebar() {
         return items.filter((item) => item.title === 'Funcionários');
       case 'accredited':
         return items.filter((item) => item.title === 'Serviços');
+      case 'accrediting':
+        return items
+          .filter((item) => item.title !== 'Dashboard') // Remove o Dashboard
+          .map((item) => ({
+            ...item,
+            items: item.items
+              ? item.items.filter(
+                  (subItem) => subItem.title !== 'Listar credenciadoras'
+                )
+              : []
+          }));
       case 'admin':
         return items; // Admin tem acesso a todos
       default:
@@ -88,7 +99,7 @@ export default function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex gap-2 py-2 text-sidebar-accent-foreground ">
+        <div className="flex gap-2 py-2 text-sidebar-accent ">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-sidebar-primary-foreground">
             <company.logo className="size-8" />
           </div>

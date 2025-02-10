@@ -22,12 +22,10 @@ const formSchema = z.object({
   nome: z.string().min(2, {
     message: 'Nome do plano deve ter pelo menos 2 caracteres.'
   }),
-  desconto: z.number().min(0).max(100, {
-    message: 'Desconto deve ser um número entre 0 e 100.'
-  }),
   descricao: z.string().min(10, {
     message: 'Descrição deve ter pelo menos 10 caracteres.'
-  })
+  }),
+  accrediting_name: z.string().optional() // Make this optional or required as needed
 });
 
 export default function PlanForm() {
@@ -35,12 +33,12 @@ export default function PlanForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       nome: '',
-      desconto: 0,
       descricao: ''
     }
   });
 
   const router = useRouter();
+  const { user } = useUser(); // Obtém o usuário atual
 
   // Use o hook useFirestore
   const { addDocument, loading, error } = useFirestore({
@@ -57,7 +55,23 @@ export default function PlanForm() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    addDocument(values, null); // Envia os dados para o Firestore
+    // Verifica se o campo accrediting_name existe, caso contrário, omite ou define como null
+    const dataToSave = {
+      ...values,
+      accrediting_Id: user?.uid, // Adiciona o ID do usuário atual
+      accrediting_name:
+        user?.role === 'accrediting' ? user?.displayName || null : undefined // Verifica se o nome do acreditador deve ser enviado
+    };
+
+    // Remover o campo accrediting_name se ele for null ou undefined
+    if (
+      dataToSave.accrediting_name === undefined ||
+      dataToSave.accrediting_name === null
+    ) {
+      delete dataToSave.accrediting_name;
+    }
+
+    addDocument(dataToSave, null); // Envia os dados para o Firestore
   }
 
   return (
@@ -86,26 +100,6 @@ export default function PlanForm() {
               />
               <FormField
                 control={form.control}
-                name="desconto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Desconto</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Digite o desconto"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        } // Converte para número ao digitar
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
                 name="descricao"
                 render={({ field }) => (
                   <FormItem>
@@ -120,6 +114,26 @@ export default function PlanForm() {
                   </FormItem>
                 )}
               />
+              {user?.role === 'accrediting' && (
+                <FormField
+                  control={form.control}
+                  name="accrediting_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Acreditador</FormLabel>
+                      <FormControl>
+                        {/* Garantindo que o valor é uma string */}
+                        <Input
+                          {...field} // 'field' already handles value and onChange
+                          disabled
+                          defaultValue={user?.displayName || ''} // Set default value if user.displayName is null
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <Button disabled={loading} type="submit">
               {loading ? 'Criando plano...' : 'Criar novo plano'}

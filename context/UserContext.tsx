@@ -12,7 +12,7 @@ interface User {
   email: string | null;
   photoURL: string | null;
   uid: string | null;
-  role: 'business' | 'employee' | 'accredited' | 'admin'; // Tipando o role
+  role: 'business' | 'employee' | 'accredited' | 'admin' | 'accrediting'; // Tipando o role
 }
 
 // Estrutura da resposta da API, com o campo 'payload' que contém os dados do usuário

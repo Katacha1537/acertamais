@@ -17,14 +17,13 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { roleRoutes } from '@/constants/data';
 import { useUser } from '@/context/UserContext';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
 import { createLogin } from '@/lib/createLogin';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -68,6 +67,7 @@ const formSchema = z.object({
       message: 'Telefone do Financeiro deve ter pelo menos 10 caracteres.'
     })
   }),
+  accrediting_name: z.string().optional(),
   planos: z.string().min(1, {
     message: 'Selecione um plano.'
   })
@@ -99,8 +99,22 @@ export default function EmpresaForm() {
   });
 
   const router = useRouter();
+  const { user } = useUser(); // Obtém o usuário atual
 
-  const { documents, loading, error } = useFetchDocuments('planos');
+  const { documents: plans, loading, error } = useFetchDocuments('planos');
+  const [filteredPlans, setFilteredPlans] = useState(plans);
+
+  // Filtra os planos se o user.role for 'accrediting'
+  useEffect(() => {
+    if (user?.role === 'accrediting') {
+      const filtered = plans?.filter(
+        (plan) => plan.accrediting_Id === user?.uid
+      );
+      setFilteredPlans(filtered);
+    } else {
+      setFilteredPlans(plans);
+    }
+  }, [plans, user?.role]);
 
   const { addDocument, loading: addLoading } = useFirestore({
     collectionName: 'empresas',
@@ -120,15 +134,32 @@ export default function EmpresaForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const user = await createLogin(values.emailAcess);
+    const userUid = await createLogin(values.emailAcess);
     const userInfo = {
-      uid: user,
+      uid: userUid,
       role: 'business',
       name: values.nomeFantasia,
       email: values.emailAcess
     };
+
+    // Verifica se o campo accrediting_name existe, caso contrário, omite ou define como null
+    const dataToSave = {
+      ...values,
+      accrediting_Id: user?.uid, // Adiciona o ID do usuário atual
+      accrediting_name:
+        user?.role === 'accrediting' ? user?.displayName || null : undefined // Verifica se o nome do acreditador deve ser enviado
+    };
+
+    // Remover o campo accrediting_name se ele for null ou undefined
+    if (
+      dataToSave.accrediting_name === undefined ||
+      dataToSave.accrediting_name === null
+    ) {
+      delete dataToSave.accrediting_name;
+    }
+
     addUser(userInfo, null);
-    addDocument(values, user);
+    addDocument(dataToSave, userUid);
   }
 
   if (loading) return <div>Carregando...</div>;
@@ -353,7 +384,7 @@ export default function EmpresaForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {documents.map((doc) => (
+                      {filteredPlans.map((doc) => (
                         <SelectItem key={doc.id} value={doc.id}>
                           {doc.nome} - {doc.descricao}
                         </SelectItem>
@@ -364,6 +395,26 @@ export default function EmpresaForm() {
                 </FormItem>
               )}
             />
+            {user?.role === 'accrediting' && (
+              <FormField
+                control={form.control}
+                name="accrediting_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Acreditador</FormLabel>
+                    <FormControl>
+                      {/* Garantindo que o valor é uma string */}
+                      <Input
+                        {...field} // 'field' already handles value and onChange
+                        disabled
+                        defaultValue={user?.displayName || ''} // Set default value if user.displayName is null
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <Button disabled={addLoading} type="submit">
               {addLoading ? 'Criando Empresa...' : 'Criar Empresa'}
             </Button>

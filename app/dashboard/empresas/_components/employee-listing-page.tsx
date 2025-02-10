@@ -13,9 +13,19 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import EmployeeTable from './employee-tables';
 
+type Business = {
+  id: string;
+  name: string;
+  planos: string;
+  accrediting_Id?: string; // Certificando-se de que existe a propriedade accrediting_Id
+  planName: string;
+};
+
 type TEmployeeListingPage = {};
 
 export default function EmployeeListingPage({}: TEmployeeListingPage) {
+  const { user } = useUser(); // Obtém o usuário atual
+
   const {
     documents: businesses,
     fetchDocuments,
@@ -27,9 +37,11 @@ export default function EmployeeListingPage({}: TEmployeeListingPage) {
     loading: plansLoading,
     error: plansError
   } = useFetchDocuments('planos');
-  const [mergedBusinesses, setMergedBusinesses] = useState<any[]>([]);
+
+  const [filteredBusinesses, setFilteredBusinesses] = useState<Business[]>([]);
 
   const { updateFlag } = useUpdateContext();
+
   useEffect(() => {
     const fetchDoc = async () => {
       await fetchDocuments();
@@ -41,17 +53,28 @@ export default function EmployeeListingPage({}: TEmployeeListingPage) {
 
   useEffect(() => {
     if (businesses && plans) {
-      const merged = businesses.map((business) => {
+      // Mapeando as empresas para incluir o nome do plano
+      const merged: Business[] = businesses.map((business: any) => {
         const planName =
           plans.find((plan) => plan.id === business.planos)?.nome ||
           'Plano desconhecido';
         return { ...business, planName };
       });
-      setMergedBusinesses(merged);
-    }
-  }, [businesses, plans]);
 
-  const totalBusinesses = mergedBusinesses?.length || 0;
+      // Filtrando as empresas baseadas no papel do usuário
+      let filtered = merged;
+      if (user?.role === 'accrediting') {
+        filtered = merged.filter(
+          (business) => business.accrediting_Id === user?.uid
+        );
+      }
+
+      // Atualizando o estado de empresas filtradas
+      setFilteredBusinesses(filtered);
+    }
+  }, [businesses, plans, user]);
+
+  const totalBusinesses = filteredBusinesses?.length || 0;
 
   return (
     <PageContainer scrollable>
@@ -61,7 +84,6 @@ export default function EmployeeListingPage({}: TEmployeeListingPage) {
             title={`Empresas (${totalBusinesses})`}
             description="Gerenciar Empresas."
           />
-
           <Link
             href={'/dashboard/empresas/novo'}
             className={cn(buttonVariants({ variant: 'default' }))}
@@ -70,7 +92,7 @@ export default function EmployeeListingPage({}: TEmployeeListingPage) {
           </Link>
         </div>
         <Separator />
-        <EmployeeTable data={mergedBusinesses} totalData={totalBusinesses} />
+        <EmployeeTable data={filteredBusinesses} totalData={totalBusinesses} />
       </div>
     </PageContainer>
   );
