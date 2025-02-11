@@ -149,6 +149,14 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Solicitações',
+    url: '/dashboard/solicitacions',
+    icon: 'dashboard',
+    isActive: false,
+    shortcut: ['d', 'd'],
+    items: []
+  },
+  {
     title: 'Crendenciadoras',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'shildCheck',

@@ -24,10 +24,7 @@
     "@dnd-kit/modifiers": "^7.0.0",
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-<<<<<<< HEAD
     "@heroicons/react": "^2.2.0",
-=======
->>>>>>> 9710a3cf4acc44d9ba6645f45da70ca36d062e26
     "@hookform/resolvers": "^3.3.2",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
@@ -58,21 +55,15 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "cmdk": "^1.0.0",
-<<<<<<< HEAD
     "compressorjs": "^1.2.1",
-=======
->>>>>>> 9710a3cf4acc44d9ba6645f45da70ca36d062e26
     "crypto-browserify": "^3.12.1",
     "date-fns": "^2.30.0",
     "eslint": "8.48.0",
     "eslint-config-next": "^14.0.1",
     "firebase": "^11.1.0",
     "firebase-admin": "^13.0.1",
-<<<<<<< HEAD
     "framer-motion": "^12.4.2",
     "heroicons": "^2.2.0",
-=======
->>>>>>> 9710a3cf4acc44d9ba6645f45da70ca36d062e26
     "jsonwebtoken": "^9.0.2",
     "kbar": "^0.1.0-beta.45",
     "lucide-react": "^0.447.0",

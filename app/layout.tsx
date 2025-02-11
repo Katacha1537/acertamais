@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { Lato } from 'next/font/google';
 import NextTopLoader from 'nextjs-toploader';
 import './globals.css';
+import { GlobalModal } from '@/components/global-modal';
 
 export const metadata: Metadata = {
   title: 'Acerta+',
@@ -30,6 +31,7 @@ export default async function RootLayout({
       <body className={'overflow-hidden'}>
         <NextTopLoader showSpinner={false} />
         <Providers>
+          <GlobalModal />
           <Toaster position="top-right" expand={false} richColors />
           {children}
         </Providers>
