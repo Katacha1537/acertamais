@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useUser } from '@/context/UserContext';
 import { useDocumentById } from '@/hooks/useDocumentById';
+import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useParams, useRouter } from 'next/navigation';
@@ -20,7 +21,15 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
-// Schema de validação
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+
 const formSchema = z.object({
   nome: z.string().min(2, {
     message: 'Nome do plano deve ter pelo menos 2 caracteres.'
@@ -28,7 +37,8 @@ const formSchema = z.object({
   descricao: z.string().min(10, {
     message: 'Descrição deve ter pelo menos 10 caracteres.'
   }),
-  accrediting_name: z.string().optional() // Torne opcional conforme necessário
+  accrediting_name: z.string().optional(),
+  accrediting_Id: z.string().optional()
 });
 
 export default function PlanFormEdit() {
@@ -38,10 +48,7 @@ export default function PlanFormEdit() {
     ? params.planId[0]
     : params.planId;
 
-  // Hook para pegar o documento do Firestore
   const { data, loading: dataLoading } = useDocumentById('planos', planId);
-
-  // Hook para atualizar o documento no Firestore
   const { updateDocument } = useFirestore({
     collectionName: 'planos',
     onSuccess: () => {
@@ -54,7 +61,12 @@ export default function PlanFormEdit() {
     }
   });
 
-  const { user } = useUser(); // Obtém o usuário atual
+  const { user } = useUser();
+  const {
+    documents: accreditors,
+    loading: accreditorsLoading,
+    error: accreditorsError
+  } = useFetchDocuments('credenciadoras');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,27 +74,32 @@ export default function PlanFormEdit() {
       nome: '',
       descricao: '',
       accrediting_name:
-        user?.role === 'accrediting' ? user?.displayName || '' : undefined
+        user?.role === 'accrediting' ? user?.displayName || '' : undefined,
+      accrediting_Id: ''
     }
   });
 
-  // Atualiza os valores do formulário quando os dados são carregados
   useEffect(() => {
     if (data) {
       form.reset({
         nome: data.nome || '',
         descricao: data.descricao || '',
         accrediting_name:
-          user?.role === 'accrediting' ? user?.displayName || '' : undefined
+          user?.role === 'accrediting'
+            ? user?.displayName || ''
+            : data.accrediting_name,
+        accrediting_Id: data.accrediting_Id || ''
       });
     }
   }, [data, form, user]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // Verifica se o campo accrediting_name existe e é necessário, caso contrário, o omite
     const dataToUpdate = {
       ...values,
-      accrediting_Id: user?.uid // Atualiza com o ID do usuário atual
+      accrediting_Id:
+        user?.role === 'accrediting' ? user?.uid : values.accrediting_Id,
+      accrediting_name:
+        user?.role === 'accrediting' ? user?.displayName || null : undefined
     };
 
     if (
@@ -135,19 +152,54 @@ export default function PlanFormEdit() {
                   </FormItem>
                 )}
               />
-              {user?.role === 'accrediting' && (
+              {user?.role === 'accrediting' ? (
                 <FormField
                   control={form.control}
                   name="accrediting_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome do Acreditador</FormLabel>
+                      <FormLabel>Nome da Credenciadora</FormLabel>
                       <FormControl>
                         <Input
-                          {...field} // 'field' already handles value and onChange
+                          {...field}
                           disabled
-                          defaultValue={user?.displayName || ''} // Set default value if user.displayName is null
+                          defaultValue={user?.displayName || ''}
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="accrediting_Id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Selecionar Credenciadora</FormLabel>
+                      <FormControl>
+                        <Select
+                          {...field}
+                          disabled={accreditorsLoading}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione uma credenciadora" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {accreditors?.map((accreditor) => (
+                                <SelectItem
+                                  key={accreditor.id}
+                                  value={accreditor.id}
+                                >
+                                  {accreditor.nomeFantasia}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -156,7 +208,9 @@ export default function PlanFormEdit() {
               )}
             </div>
             <Button
-              disabled={dataLoading || form.formState.isSubmitting}
+              disabled={
+                dataLoading || form.formState.isSubmitting || accreditorsLoading
+              }
               type="submit"
             >
               {form.formState.isSubmitting

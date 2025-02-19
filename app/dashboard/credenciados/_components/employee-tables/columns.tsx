@@ -5,21 +5,21 @@ import { CellAction } from './cell-action';
 import { LogoPreview } from './logo-preview';
 
 // Definindo a estrutura da linha de dados
-interface Company{
-    id: string;
-    nome: string;
-    descricao: string;
-    accrediting_name: string;
-    accrediting_Id: string;
-    imagemUrl: string;
-    razaoSocial: string;
-    nomeFantasia: string;
-    cnpj: string;
-    telefone: string;
-    segmento: string;
-    endereco: string;
-    cep: string;
-};
+interface Company {
+  id: string;
+  nome: string;
+  descricao: string;
+  accrediting_name: string;
+  accrediting_Id: string;
+  imagemUrl: string;
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  telefone: string;
+  segmento: string;
+  endereco: string;
+  cep: string;
+}
 
 // Definindo a tipagem para as colunas
 export const columns: ColumnDef<Company>[] = [
@@ -47,12 +47,12 @@ export const columns: ColumnDef<Company>[] = [
     header: 'Logo'
   },
   {
-    accessorKey: 'razaoSocial',
-    header: 'Razão Social'
-  },
-  {
     accessorKey: 'nomeFantasia',
     header: 'Nome Fantasia'
+  },
+  {
+    accessorKey: 'razaoSocial',
+    header: 'Razão Social'
   },
   {
     accessorKey: 'cnpj',

@@ -9,33 +9,38 @@ import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import EmployeeTable from './employee-tables';
 
 export default function EmployeeListingPage() {
   const { updateFlag } = useUpdateContext();
-  // Fetching documents using a custom hook
   const {
-    documents: plans,
+    documents: credenciadoras,
     fetchDocuments,
     loading,
     error
   } = useFetchDocuments('credenciadoras');
-  const totalPlans = plans?.length || 0;
+
+  const totalCredenciadoras = credenciadoras?.length || 0;
+
+  const handleRetry = useCallback(async () => {
+    try {
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Failed to retry fetching:', error);
+    }
+  }, [fetchDocuments]);
 
   useEffect(() => {
-    const fetchDoc = async () => {
-      await fetchDocuments();
-    };
-    fetchDoc();
-  }, [updateFlag]);
+    fetchDocuments();
+  }, [updateFlag, fetchDocuments]);
 
   return (
     <PageContainer scrollable>
       <div className="space-y-4">
         <div className="flex items-start justify-between">
           <Heading
-            title={`Credenciadoras (${totalPlans})`}
+            title={`Credenciadoras (${totalCredenciadoras})`}
             description="Gerenciar Credenciadoras."
           />
 
@@ -48,13 +53,27 @@ export default function EmployeeListingPage() {
         </div>
         <Separator />
 
-        {/* Conditional rendering based on loading or error */}
-        {loading && <p>Carregando os Credenciadoras...</p>}
-        {updateFlag && <p></p>}
-        {error && <p>Erro ao carregar os Credenciadoras</p>}
-
-        {!loading && !error && (
-          <EmployeeTable data={plans} totalData={totalPlans} />
+        {!credenciadoras ? (
+          <div className="flex h-32 items-center justify-center">
+            <p className="text-muted-foreground">
+              Carregando Credenciadoras...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="flex h-32 flex-col items-center justify-center gap-4">
+            <p className="text-destructive">Erro ao carregar Credenciadoras</p>
+            <button
+              onClick={handleRetry}
+              className={cn(buttonVariants({ variant: 'outline' }))}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <EmployeeTable
+            data={credenciadoras}
+            totalData={totalCredenciadoras}
+          />
         )}
       </div>
     </PageContainer>

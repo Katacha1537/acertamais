@@ -151,7 +151,7 @@ export const navItems: NavItem[] = [
   {
     title: 'Solicitações',
     url: '/dashboard/solicitacions',
-    icon: 'dashboard',
+    icon: 'bell',
     isActive: false,
     shortcut: ['d', 'd'],
     items: []

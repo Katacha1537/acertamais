@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ArrowRight,
+  Bell,
   Building,
   Check,
   ChevronLeft,
@@ -45,6 +46,7 @@ export const Icons = {
   logo: Command,
   login: LogIn,
   plus: PlusIcon,
+  bell: Bell,
   close: X,
   product: LucideShoppingBag,
   spinner: Loader2,

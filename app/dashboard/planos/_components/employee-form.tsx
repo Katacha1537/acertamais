@@ -11,23 +11,22 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useUser } from '@/context/UserContext';
+import useFetchDocuments from '@/hooks/useFetchDocuments'; // Importando o hook para buscar as credenciadoras
 import { useFirestore } from '@/hooks/useFirestore';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import * as z from 'zod';
-import useFetchDocuments from '@/hooks/useFetchDocuments'; // Importando o hook para buscar as credenciadoras
 
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"; // Importando os componentes do Select ShadCN
+  SelectValue
+} from '@/components/ui/select'; // Importando os componentes do Select ShadCN
 
 const formSchema = z.object({
   nome: z.string().min(2, {
@@ -65,12 +64,17 @@ export default function PlanForm() {
   });
 
   // Usando o hook useFetchDocuments para buscar as credenciadoras
-  const { documents: accreditors, loading: accreditorsLoading, error: accreditorsError } = useFetchDocuments('credenciadoras');
+  const {
+    documents: accreditors,
+    loading: accreditorsLoading,
+    error: accreditorsError
+  } = useFetchDocuments('credenciadoras');
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const dataToSave = {
       ...values,
-      accrediting_Id: user?.role === 'accrediting' ? user?.uid : values.accrediting_Id, // Se for acreditador, usa o UID do usuário
+      accrediting_Id:
+        user?.role === 'accrediting' ? user?.uid : values.accrediting_Id, // Se for acreditador, usa o UID do usuário
       accrediting_name:
         user?.role === 'accrediting' ? user?.displayName || null : undefined // Nome do acreditador ou undefined
     };
@@ -131,7 +135,7 @@ export default function PlanForm() {
                   name="accrediting_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome do Acreditador</FormLabel>
+                      <FormLabel>Nome do Credenciadora</FormLabel>
                       <FormControl>
                         {/* Garantindo que o valor é uma string */}
                         <Input
@@ -150,7 +154,7 @@ export default function PlanForm() {
                   name="accrediting_Id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Selecionar Acreditador</FormLabel>
+                      <FormLabel>Selecionar Credenciadora</FormLabel>
                       <FormControl>
                         <Select
                           {...field}
@@ -162,7 +166,10 @@ export default function PlanForm() {
                           <SelectContent>
                             <SelectGroup>
                               {accreditors?.map((accreditor) => (
-                                <SelectItem key={accreditor.id} value={accreditor.id}>
+                                <SelectItem
+                                  key={accreditor.id}
+                                  value={accreditor.id}
+                                >
                                   {accreditor.nomeFantasia}
                                 </SelectItem>
                               ))}
@@ -177,7 +184,9 @@ export default function PlanForm() {
               )}
             </div>
             <Button disabled={loading || accreditorsLoading} type="submit">
-              {loading || accreditorsLoading ? 'Criando plano...' : 'Criar novo plano'}
+              {loading || accreditorsLoading
+                ? 'Criando plano...'
+                : 'Criar novo plano'}
             </Button>
           </form>
         </Form>

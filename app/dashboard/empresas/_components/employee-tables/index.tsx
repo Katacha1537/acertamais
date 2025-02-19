@@ -16,15 +16,17 @@ export default function EmployeeTable({
   const { searchQuery, setPage, setSearchQuery } = useEmployeeTableFilters();
   const [filteredData, setFilteredData] = useState(data);
 
-  // Filtrar os dados com base no searchQuery
   useEffect(() => {
     if (searchQuery) {
       const filtered = data.filter((item) =>
-        item.nome.toLowerCase().includes(searchQuery.toLowerCase())
+        // Adicionado tratamento para valores undefined/null
+        (item.nomeFantasia || '')
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
       );
       setFilteredData(filtered);
     } else {
-      setFilteredData(data); // Resetar para os dados originais caso o searchQuery esteja vazio
+      setFilteredData(data);
     }
   }, [searchQuery, data]);
 

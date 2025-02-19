@@ -20,7 +20,7 @@ export default function EmployeeTable({
   useEffect(() => {
     if (searchQuery) {
       const filtered = data.filter((item) =>
-        item.nome.toLowerCase().includes(searchQuery.toLowerCase())
+        item.nome_servico.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredData(filtered);
     } else {
