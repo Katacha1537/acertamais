@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   Users
 } from 'lucide-react';
-import * as XLSX from 'xlsx'; // Importe a biblioteca xlsx
+import * as XLSX from 'xlsx';
 
 // Interfaces para tipagem dos dados
 interface Solicitacao {
@@ -43,18 +43,52 @@ interface Credenciado {
   nomeFantasia: string;
 }
 
+// Interface genérica para o retorno do hook (assumindo que ele não é genérico)
+interface FetchResponse {
+  documents: any[]; // Usaremos type assertions para especificar os tipos
+  loading: boolean;
+  error: string | null;
+}
+
 export default function OverViewPage() {
-  // Hooks para pegar os dados
-  const { documents: empresas, loading, error } = useFetchDocuments('empresas');
-  const { documents: planos } = useFetchDocuments('planos');
-  const { documents: funcionarios } = useFetchDocuments('funcionarios');
+  // Hooks com type assertions para especificar os tipos
+  const {
+    documents: empresas,
+    loading,
+    error
+  } = useFetchDocuments('empresas') as unknown as {
+    documents: Empresa[];
+    loading: boolean;
+    error: string | null;
+  };
+  const { documents: planos } = useFetchDocuments('planos') as unknown as {
+    documents: any[];
+    loading: boolean;
+    error: string | null;
+  };
+  const { documents: funcionarios } = useFetchDocuments(
+    'funcionarios'
+  ) as unknown as {
+    documents: Funcionario[];
+    loading: boolean;
+    error: string | null;
+  };
   const { documents: credenciados } = useFetchDocuments(
     'credenciados'
-  ) as unknown as { documents: Credenciado[] };
-  const { documents: solicitacoes } = useFetchDocuments('solicitacoes');
-
+  ) as unknown as {
+    documents: Credenciado[];
+    loading: boolean;
+    error: string | null;
+  };
+  const { documents: solicitacoes } = useFetchDocuments(
+    'solicitacoes'
+  ) as unknown as {
+    documents: Solicitacao[];
+    loading: boolean;
+    error: string | null;
+  };
   // Função para calcular o Top 5 Empresas com Mais Funcionários
-  const getTopEmpresas = () => {
+  const getTopEmpresas = (): Empresa[] => {
     if (!empresas) return [];
     return [...empresas]
       .sort((a, b) => b.numeroFuncionarios - a.numeroFuncionarios)
@@ -64,12 +98,10 @@ export default function OverViewPage() {
   const getTopCredenciados = () => {
     if (!solicitacoes || !credenciados) return [];
 
-    // Filtra as solicitações confirmadas
     const solicitacoesConfirmadas = solicitacoes.filter(
       (solicitacao) => solicitacao.status === 'confirmada'
     );
 
-    // Agrupa as solicitações por credenciado e soma os valores
     const credenciadosMap = new Map<string, number>();
     solicitacoesConfirmadas.forEach((solicitacao) => {
       const credenciadoId = solicitacao.donoId;
@@ -85,7 +117,6 @@ export default function OverViewPage() {
       }
     });
 
-    // Mapeia os credenciados com seus valores totais e filtra os que não foram encontrados
     const credenciadosComValor = Array.from(credenciadosMap.entries())
       .map(([credenciadoId, valorTotal]) => {
         const credenciado = credenciados.find((c) => c.id === credenciadoId);
@@ -95,14 +126,12 @@ export default function OverViewPage() {
         (item): item is Credenciado & { valorTotal: number } => item !== null
       );
 
-    // Ordena e seleciona os top 5
     return credenciadosComValor
       .sort((a, b) => b.valorTotal - a.valorTotal)
       .slice(0, 5);
   };
 
   const handleExport = () => {
-    // Dados resumidos
     const resumoData = [
       {
         'Empresas Ativas': empresas?.length || 0,
@@ -113,27 +142,23 @@ export default function OverViewPage() {
       }
     ];
 
-    // Dados de empresas e funcionários
     const empresasData =
       empresas?.map((empresa) => ({
         Empresa: empresa.nomeFantasia,
         Funcionários:
-          funcionarios?.filter((f: Funcionario) => f.empresaId === empresa.id)
-            .length || 0
+          funcionarios?.filter((f) => f.empresaId === empresa.id).length || 0
       })) || [];
 
-    // Dados de faturamento por credenciado
     const solicitacoesConfirmadas =
       solicitacoes?.filter(
-        (s: Solicitacao) =>
-          s.status === 'confirmado' || s.status === 'confirmada'
+        (s) => s.status === 'confirmado' || s.status === 'confirmada'
       ) || [];
 
     const faturamentoData =
       credenciados?.map((credenciado) => {
         const total = solicitacoesConfirmadas
           .filter(
-            (s: Solicitacao) =>
+            (s) =>
               s.donoId === credenciado.id || s.credenciado_id === credenciado.id
           )
           .reduce((sum, s) => sum + s.preco, 0);
@@ -143,18 +168,15 @@ export default function OverViewPage() {
         };
       }) || [];
 
-    // Criar worksheets
     const resumoWS = XLSX.utils.json_to_sheet(resumoData);
     const empresasWS = XLSX.utils.json_to_sheet(empresasData);
     const faturamentoWS = XLSX.utils.json_to_sheet(faturamentoData);
 
-    // Criar workbook
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, resumoWS, 'Resumo');
     XLSX.utils.book_append_sheet(wb, empresasWS, 'Empresas');
     XLSX.utils.book_append_sheet(wb, faturamentoWS, 'Faturamento');
 
-    // Salvar arquivo
     XLSX.writeFile(wb, 'dados_gerenciais.xlsx');
   };
 
@@ -181,12 +203,9 @@ export default function OverViewPage() {
           <h2 className="text-2xl font-bold tracking-tight">
             Painel Gerencial - Visão Geral
           </h2>
-          {/* <Button onClick={handleExport}>
-            Exportar para Excel
-          </Button> */}
+          {/* <Button onClick={handleExport}>Exportar para Excel</Button> */}
         </div>
 
-        {/* Cards Principais */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between p-4">
@@ -255,9 +274,7 @@ export default function OverViewPage() {
           </Card>
         </div>
 
-        {/* Seção de Gráficos e Rankings */}
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Top Empresas */}
           <Card>
             <CardHeader>
               <CardTitle>Top 5 Empresas com Mais Funcionários</CardTitle>
@@ -284,7 +301,6 @@ export default function OverViewPage() {
             </CardContent>
           </Card>
 
-          {/* Top Credenciados */}
           <Card>
             <CardHeader>
               <CardTitle>Top 5 Credenciados por Valor de Serviço</CardTitle>
