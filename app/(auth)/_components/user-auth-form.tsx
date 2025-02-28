@@ -20,21 +20,29 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
-// Validação do formulário
-const formSchema = z.object({
+// Schemas de validação
+const loginSchema = z.object({
   email: z.string().email({ message: 'Endereço de e-mail inválido' }),
   password: z
     .string()
     .min(6, { message: 'Senha precisa ter pelo menos 6 caracteres.' })
 });
 
+const resetSchema = z.object({
+  emailResetPassword: z
+    .string()
+    .email({ message: 'Endereço de e-mail inválido' }) // Campo renomeado
+});
+
 const roleRoutes = {
   admin: '/dashboard/overview',
   business: '/dashboard/funcionarios',
-  accredited: '/dashboard/servicos'
+  accredited: '/dashboard/servicos',
+  accrediting: '/dashboard/planos'
 };
 
-type UserFormValue = z.infer<typeof formSchema>;
+type LoginFormValue = z.infer<typeof loginSchema>;
+type ResetFormValue = z.infer<typeof resetSchema>;
 
 interface UserDocument {
   id: string;
@@ -42,25 +50,37 @@ interface UserDocument {
   email: string | null;
   photoURL: string | null;
   uid: string | null;
-  role: 'business' | 'employee' | 'accredited' | 'admin'; // Tipando o role
-  [key: string]: any; // Ajuste conforme a estrutura do seu documento
+  role: 'business' | 'employee' | 'accredited' | 'admin';
+  [key: string]: any;
 }
+
 export default function UserAuthForm() {
-  const [loading, setLoading] = useState(false);
-  const { setUser } = useUser(); // Usando o hook useUser
-  const form = useForm<UserFormValue>({
-    resolver: zodResolver(formSchema)
-  });
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const { setUser } = useUser();
   const router = useRouter();
 
-  // Função para buscar dados do usuário com base no email
+  // Formulário de login
+  const loginForm = useForm<LoginFormValue>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+    mode: 'onChange'
+  });
+
+  // Formulário de recuperação com campo separado
+  const resetForm = useForm<ResetFormValue>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { emailResetPassword: '' }, // Valor inicial ajustado
+    mode: 'onChange'
+  });
+
+  // Função para buscar dados do usuário
   const fetchUserData = async (email: string): Promise<UserDocument | null> => {
-    setLoading(true);
+    setLoginLoading(true);
     try {
       const q = query(collection(db, 'users'), where('email', '==', email));
       const querySnapshot = await getDocs(q);
-
-      // Mapeamento para preencher corretamente as propriedades
       const userDocs: UserDocument[] = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         email: doc.data().email,
@@ -70,41 +90,30 @@ export default function UserAuthForm() {
         uid: doc.data().uid,
         ...doc.data()
       }));
-
-      if (userDocs.length > 0) {
-        return userDocs[0]; // Retorna o primeiro usuário encontrado
-      } else {
-        return null; // Se não encontrar o usuário, retorna null
-      }
+      return userDocs.length > 0 ? userDocs[0] : null;
     } catch (error) {
       console.error('Erro ao buscar dados do usuário:', error);
       toast.error('Erro ao buscar dados do usuário.');
       return null;
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
     }
   };
 
-  const onSubmit = async (data: UserFormValue) => {
-    setLoading(true);
+  // Função de login (mantida igual)
+  const onLoginSubmit = async (data: LoginFormValue) => {
+    setLoginLoading(true);
     try {
-      const userInfo = await fetchUserData(data.email); // Aguarda o retorno da Promise
-
-      // Verifique se userInfo foi carregado e se contém dados
+      const userInfo = await fetchUserData(data.email);
       if (!userInfo) {
         toast.error('Usuário não encontrado.');
         return;
       }
-
-      // Verifique o papel do usuário
       if (userInfo.role === 'employee') {
-        toast.error(
-          'Usuário não pode realizar o login. Funcionários não têm acesso ao painel admin.'
-        );
+        toast.error('Funcionários não têm acesso ao painel admin.');
         return;
       }
 
-      // Realiza o login com Firebase
       const userCredential = await signInWithEmailAndPassword(
         auth,
         data.email,
@@ -112,7 +121,6 @@ export default function UserAuthForm() {
       );
       const user = userCredential.user;
 
-      // Cria o payload do JWT
       const payload = {
         email: user.email,
         uid: user.uid,
@@ -123,103 +131,173 @@ export default function UserAuthForm() {
 
       setUser(payload);
 
-      // Envia o token para a API
       const response = await fetch('/api/auth/sign-in', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ payload }) // Envia o token no corpo da requisição
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload })
       });
 
       if (!response.ok) {
         throw new Error('Falha ao salvar o token no servidor.');
       }
 
-      // Exibe a mensagem de sucesso
       toast.success('Login realizado com sucesso!');
-      const route = roleRoutes[userInfo.role];
-
-      if (route) {
-        router.push(route);
-      } else {
-        // Aqui você pode definir um comportamento padrão para quando o papel não corresponder a nenhum dos esperados
-        toast.error('Permisão inválida ou não encontrado');
-      }
+      router.push(roleRoutes[userInfo.role]);
     } catch (error: any) {
-      // Tratamento de erros de autenticação
       if (error.code === 'auth/user-not-found') {
-        toast.error(
-          'Usuário não encontrado. Verifique seu e-mail e tente novamente.'
-        );
+        toast.error('Usuário não encontrado.');
       } else if (error.code === 'auth/wrong-password') {
-        toast.error('Senha inválida. Tente novamente.');
+        toast.error('Senha inválida.');
       } else if (error.code === 'auth/invalid-credential') {
-        toast.error('Credenciais inválidas. Tente novamente.');
+        toast.error('Credenciais inválidas.');
       } else if (error.code === 'auth/too-many-requests') {
-        toast.error(
-          'Muitas tentativas. Por favor, tente novamente mais tarde.'
-        );
+        toast.error('Muitas tentativas. Tente novamente mais tarde.');
       } else {
-        toast.error('Ocorreu um erro inesperado. Tente novamente.');
+        toast.error('Erro inesperado. Tente novamente.');
         console.error(error);
       }
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
+    }
+  };
+
+  // Função de recuperação de senha ajustada
+  const onResetSubmit = async (data: ResetFormValue) => {
+    setResetLoading(true);
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: data.emailResetPassword }) // Envio do campo correto
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error);
+      }
+
+      toast.success(
+        'Email de recuperação enviado! Verifique sua caixa de entrada.'
+      );
+      setIsResetMode(false);
+      resetForm.reset();
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao enviar email de recuperação.');
+      console.error(error);
+    } finally {
+      setResetLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full space-y-2">
-        {/* Campo de Email */}
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input
-                  type="email"
-                  placeholder="Escreva seu email..."
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Campo de Senha */}
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Senha</FormLabel>
-              <FormControl>
-                <Input
-                  type="password"
-                  placeholder="**********"
-                  disabled={loading}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Botão de Enviar */}
-        <Button
-          disabled={loading}
-          className="ml-auto w-full text-white hover:bg-[#244777]"
-          type="submit"
-        >
-          Continue
-        </Button>
-      </form>
-    </Form>
+    <div className="w-full space-y-4">
+      {isResetMode ? (
+        <Form {...resetForm}>
+          <form
+            onSubmit={resetForm.handleSubmit(onResetSubmit)}
+            className="space-y-4"
+          >
+            <FormField
+              control={resetForm.control}
+              name="emailResetPassword" // Campo renomeado
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email para recuperação</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Digite seu email..."
+                      disabled={resetLoading}
+                      {...field} // Spread correto do field
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="text-right">
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:underline"
+                disabled={resetLoading}
+                onClick={() => setIsResetMode(false)}
+              >
+                Voltar para o login
+              </button>
+            </div>
+            <Button
+              disabled={resetLoading}
+              className="w-full text-white hover:bg-[#244777]"
+              type="submit"
+            >
+              {resetLoading ? 'Enviando...' : 'Enviar email de recuperação'}
+            </Button>
+          </form>
+        </Form>
+      ) : (
+        <Form {...loginForm}>
+          <form
+            onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+            className="space-y-4"
+          >
+            <FormField
+              control={loginForm.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Escreva seu email..."
+                      disabled={loginLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={loginForm.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Senha</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="**********"
+                      disabled={loginLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="text-right">
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:underline"
+                disabled={loginLoading}
+                onClick={() => setIsResetMode(true)}
+              >
+                Esqueceu sua senha?
+              </button>
+            </div>
+            <Button
+              disabled={loginLoading}
+              className="w-full text-white hover:bg-[#244777]"
+              type="submit"
+            >
+              {loginLoading ? 'Carregando...' : 'Continue'}
+            </Button>
+          </form>
+        </Form>
+      )}
+    </div>
   );
 }

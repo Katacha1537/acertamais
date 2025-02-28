@@ -30,6 +30,11 @@ export default function ServiceListingPage() {
     loading: credenciadosLoading,
     error: credenciadosError
   } = useFetchDocuments('credenciados');
+  const {
+    documents: credenciadoras,
+    loading: credenciadorasLoading,
+    error: credenciadorasError
+  } = useFetchDocuments('credenciadoras');
 
   const [filteredServices, setFilteredServices] = useState<any[]>([]);
 
@@ -47,36 +52,58 @@ export default function ServiceListingPage() {
     if (user && services && credenciados) {
       let filtered = services;
 
-      // Se o usuário for 'accredited', filtra os serviços com base no 'uid' do usuário
       if (user.role === 'accredited') {
         filtered = services.filter(
-          (service) => service.credenciado_id === user.uid // Assumindo que os serviços têm um campo 'userId'
+          (service) => service.credenciado_id === user.uid
+        );
+      } else if (user.role === 'accrediting') {
+        // Primeiro filtrar os credenciados desta credenciadora
+        const credenciadosDaCredenciadora = credenciados.filter(
+          (credenciado) => credenciado.accrediting_Id === user.uid
+        );
+
+        // Pegar apenas os IDs dos credenciados filtrados
+        const credenciadosIds = credenciadosDaCredenciadora.map((c) => c.id);
+
+        // Filtrar serviços que pertencem a esses credenciados
+        filtered = services.filter((service) =>
+          credenciadosIds.includes(service.credenciado_id)
         );
       }
 
-      // Processar os serviços e adicionar informações de credenciado e descontos
+      // Processamento dos dados...
       const merged = filtered.map((service) => {
+        const credenciado = credenciados.find(
+          (c) => c.id === service.credenciado_id
+        );
+
         const credenciadoName =
-          credenciados.find(
-            (credenciado) => credenciado.id === service.credenciado_id
-          )?.nomeFantasia || 'Plano desconhecido';
+          credenciado?.nomeFantasia || 'Credenciado desconhecido';
+        const accreditingName =
+          credenciado?.accrediting_name || 'Credenciadora não informada';
 
-        // Cálculo do percentual de desconto
-        const precoOriginal = service.preco_original;
-        const precoComDesconto = service.preco_com_desconto;
-
-        let descontoPorcentagem = '0%'; // Valor padrão caso não haja dados suficientes
-        if (precoOriginal && precoComDesconto && precoOriginal > 0) {
+        // Cálculo do desconto
+        let descontoPorcentagem = '0%';
+        if (
+          service.preco_original &&
+          service.preco_com_desconto &&
+          service.preco_original > 0
+        ) {
           const desconto =
-            ((precoOriginal - precoComDesconto) / precoOriginal) * 100;
-          descontoPorcentagem = `${desconto.toFixed(1)}% OFF`; // Formatação do desconto com uma casa decimal
+            ((service.preco_original - service.preco_com_desconto) /
+              service.preco_original) *
+            100;
+          descontoPorcentagem = `${desconto.toFixed(1)}% OFF`;
         }
 
-        // Criando um novo objeto para o serviço com o nome do credenciado e o desconto
-        return { ...service, credenciadoName, descontoPorcentagem };
+        return {
+          ...service,
+          credenciadoName,
+          accreditingName, // Novo campo adicionado
+          descontoPorcentagem
+        };
       });
 
-      // Atualizar o estado com os serviços processados
       setFilteredServices(merged);
     }
   }, [services, credenciados, user]);

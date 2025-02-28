@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Employee } from '@/constants/data';
 import { useUpdateContext } from '@/context/GlobalUpdateContext.tsx';
-import useDeleteDocument from '@/hooks/useDeleteDocument';
+import { useFirestore } from '@/hooks/useFirestore';
 import { Edit, MoreHorizontal, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -26,22 +26,29 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const router = useRouter();
   const { triggerUpdate } = useUpdateContext();
 
-  const { deleteDocument } = useDeleteDocument('empresas'); // Hook é chamado fora do evento
+  const { updateDocument } = useFirestore({
+    collectionName: 'empresas',
+    onSuccess: () => {
+      toast.success('empresa deletado com sucesso!');
+      triggerUpdate();
+    },
+    onError: () => {
+      toast.error('Erro Erro ao deletar empresa.');
+    }
+  });
 
   const onConfirm = async () => {
     setLoading(true);
     try {
-      const success = await deleteDocument(data.id); // Função retornada do hook
-      if (success) {
-        toast.success('Empresa deletado com Sucesso!');
-        setOpen(false);
-        triggerUpdate();
-      } else {
-        toast.error('Erro ao deletar o Empresa.');
-      }
+      // Ao invés de deletar, atualiza o documento com isDeleted: true
+      await updateDocument(data.id, {
+        ...data,
+        isDeleted: true,
+        deletedAt: new Date().toISOString() // Opcional: adicionar data de "exclusão"
+      });
+      setOpen(false);
     } catch (err) {
-      console.error(err);
-      toast.error('Erro inesperado ao deletar o Empresa.');
+      toast.error('Erro ao deletar empresa.');
     } finally {
       setLoading(false);
     }

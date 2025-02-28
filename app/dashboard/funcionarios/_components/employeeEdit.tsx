@@ -1,6 +1,14 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -9,18 +17,46 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { roleRoutes } from '@/constants/data';
 import { useUser } from '@/context/UserContext';
 import { useDocumentById } from '@/hooks/useDocumentById';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import InputMask from 'react-input-mask'; // Adicionando o InputMask para CPF
+import { useForm } from 'react-hook-form';
+import InputMask from 'react-input-mask';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
-// Schema de validação semelhante ao do formulário de criação
+function isValidCPF(cpf: string): boolean {
+  cpf = cpf.replace(/\D/g, ''); // Remove caracteres não numéricos
+  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+
+  let sum = 0;
+  let remainder;
+
+  // Primeiro dígito verificador
+  for (let i = 1; i <= 9; i++) {
+    sum += parseInt(cpf.charAt(i - 1)) * (11 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf.charAt(9))) return false;
+
+  // Segundo dígito verificador
+  sum = 0;
+  for (let i = 1; i <= 10; i++) {
+    sum += parseInt(cpf.charAt(i - 1)) * (12 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf.charAt(10))) return false;
+
+  return true;
+}
+
+// Validação do Formulário
 const formSchema = z.object({
   nome: z.string().min(2, {
     message: 'Nome do funcionário deve ter pelo menos 2 caracteres.'
@@ -34,7 +70,12 @@ const formSchema = z.object({
   endereco: z
     .string()
     .min(5, { message: 'Endereço deve ter pelo menos 5 caracteres.' }),
-  cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF inválido.'),
+  cpf: z
+    .string()
+    .optional()
+    .refine((value) => !value || isValidCPF(value), {
+      message: 'CPF inválido ou fictício.'
+    }),
   email: z
     .string()
     .email({ message: 'Por favor, insira um endereço de email válido.' }),
@@ -51,42 +92,56 @@ const formSchema = z.object({
       (val) => (val ? !isNaN(Number(val)) : true),
       'O número de pessoas na casa deve ser um número.'
     ),
-  empresaId: z.string().min(1, { message: 'Por favor, selecione a empresa.' })
+  empresaId: z.string().nullable().optional()
 });
 
 export default function EmployeeFormEdit() {
+  const { user } = useUser();
   const params = useParams();
   const router = useRouter();
   const employeeId = Array.isArray(params.employeeId)
     ? params.employeeId[0]
     : params.employeeId;
 
-  // Carregar os dados do funcionário
   const { data, loading: dataLoading } = useDocumentById(
     'funcionarios',
     employeeId
   );
   const { documents: empresas, loading: empresasLoading } =
     useFetchDocuments('empresas');
-  const { updateDocument } = useFirestore({ collectionName: 'funcionarios' });
+  const { updateDocument, loading: updateLoading } = useFirestore({
+    collectionName: 'funcionarios',
+    onSuccess: () => {
+      toast.success('Funcionário atualizado com sucesso!');
+      router.push('/dashboard/funcionarios');
+      setLoading(false);
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error('Erro ao atualizar o funcionário.');
+      setLoading(false);
+    }
+  });
 
   const [loading, setLoading] = useState(false);
 
-  // Definir os valores iniciais no formulário com base nos dados do funcionário
-  const [formValues, setFormValues] = useState({
-    nome: '',
-    dataNascimento: '',
-    endereco: '',
-    cpf: '',
-    email: '',
-    telefone: '',
-    pessoasNaCasa: '',
-    empresaId: ''
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: '',
+      dataNascimento: '',
+      endereco: '',
+      cpf: '',
+      email: '',
+      telefone: '',
+      pessoasNaCasa: '',
+      empresaId: user?.role === 'business' ? user.uid : ''
+    }
   });
 
   useEffect(() => {
-    if (data) {
-      setFormValues({
+    if (data && Object.keys(data).length > 0) {
+      form.reset({
         nome: data.nome || '',
         dataNascimento: data.dataNascimento || '',
         endereco: data.endereco || '',
@@ -94,177 +149,234 @@ export default function EmployeeFormEdit() {
         email: data.email || '',
         telefone: data.telefone || '',
         pessoasNaCasa: data.pessoasNaCasa || '',
-        empresaId: data.empresaId || ''
+        empresaId: data.empresaId || (user?.role === 'business' ? user.uid : '')
       });
     }
-  }, [data]);
+  }, [data, form, user]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormValues((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const validateForm = () => {
-    try {
-      formSchema.parse(formValues); // Utilizando Zod para validar os dados
-      return true;
-    } catch (error) {
-      toast.error('error.errors[0].message'); // Exibe o erro de validação
-      return false;
-    }
-  };
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
+    const updatedValues = { ...values };
 
-    try {
-      await updateDocument(employeeId, formValues);
-      toast.success('Funcionário atualizado com sucesso!');
-      router.push('/dashboard/funcionarios');
-    } catch (error) {
-      toast.error('Erro ao atualizar o funcionário.');
-    } finally {
-      setLoading(false);
+    if (user?.role === 'business' && user?.uid) {
+      updatedValues.empresaId = user.uid;
     }
-  };
 
-  if (empresasLoading || dataLoading) return <div>Carregando...</div>;
+    await updateDocument(employeeId, updatedValues);
+  }
+
+  if (empresasLoading || dataLoading || !data) {
+    return <div>Carregando...</div>;
+  }
 
   return (
     <Card className="mx-auto w-full">
       <CardHeader>
         <CardTitle className="text-left text-2xl font-bold">
-          Editar Funcionário
+          Editar Funcionário - {employeeId}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={onSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Nome */}
-            <div className="form-item">
-              <label htmlFor="nome">Nome do Funcionário</label>
-              <Input
-                id="nome"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {/* Nome */}
+              <FormField
+                control={form.control}
                 name="nome"
-                placeholder="Digite o nome do funcionário"
-                value={formValues.nome}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            {/* Data de Nascimento */}
-            <div className="form-item">
-              <label htmlFor="dataNascimento">Data de Nascimento</label>
-              <InputMask
-                mask="99/99/9999"
-                placeholder="Digite a data de nascimento"
-                value={formValues.dataNascimento}
-                onChange={handleInputChange}
-              >
-                {(inputProps) => (
-                  <Input {...inputProps} name="dataNascimento" />
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Digite o nome" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </InputMask>
-            </div>
+              />
 
-            {/* Endereço */}
-            <div className="form-item">
-              <label htmlFor="endereco">Endereço Completo</label>
-              <Input
-                id="endereco"
+              {/* Data de Nascimento */}
+              <FormField
+                control={form.control}
+                name="dataNascimento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Nascimento</FormLabel>
+                    <FormControl>
+                      <InputMask
+                        mask="99/99/9999"
+                        placeholder="Digite a data de nascimento"
+                        value={field.value}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      >
+                        {(inputProps) => <Input {...inputProps} />}
+                      </InputMask>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Endereço */}
+              <FormField
+                control={form.control}
                 name="endereco"
-                placeholder="Digite o endereço completo"
-                value={formValues.endereco}
-                onChange={handleInputChange}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Endereço Completo</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Digite o endereço completo"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {/* CPF */}
-            <div className="form-item">
-              <label htmlFor="cpf">CPF</label>
-              <InputMask
-                mask="999.999.999-99"
-                placeholder="Digite o CPF"
-                value={formValues.cpf}
-                onChange={handleInputChange}
-              >
-                {(inputProps) => <Input {...inputProps} name="cpf" />}
-              </InputMask>
-            </div>
+              {/* CPF */}
+              <FormField
+                control={form.control}
+                name="cpf"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CPF</FormLabel>
+                    <FormControl>
+                      <InputMask
+                        mask="999.999.999-99"
+                        placeholder="Digite o CPF"
+                        value={field.value}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      >
+                        {(inputProps) => <Input {...inputProps} />}
+                      </InputMask>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Email */}
-            <div className="form-item">
-              <label htmlFor="email">Email</label>
-              <Input
-                id="email"
+              {/* Email */}
+              <FormField
+                control={form.control}
                 name="email"
-                type="email"
-                placeholder="Digite o email"
-                value={formValues.email}
-                onChange={handleInputChange}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Digite o email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {/* Telefone */}
-            <div className="form-item">
-              <label htmlFor="telefone">Telefone</label>
-              <InputMask
-                mask="(99) 99999-9999"
-                placeholder="Digite o telefone"
-                value={formValues.telefone}
-                onChange={handleInputChange}
-              >
-                {(inputProps) => <Input {...inputProps} name="telefone" />}
-              </InputMask>
-            </div>
+              {/* Telefone */}
+              <FormField
+                control={form.control}
+                name="telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <InputMask
+                        mask="(99) 99999-9999"
+                        placeholder="Digite o telefone"
+                        value={field.value}
+                        onChange={(e) => field.onChange(e.target.value)}
+                      >
+                        {(inputProps) => <Input {...inputProps} />}
+                      </InputMask>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Pessoas na Casa */}
-            <div className="form-item">
-              <label htmlFor="pessoasNaCasa">
-                Quantas pessoas moram na casa?
-              </label>
-              <Input
-                id="pessoasNaCasa"
+              {/* Pessoas na Casa */}
+              <FormField
+                control={form.control}
                 name="pessoasNaCasa"
-                placeholder="Digite o número"
-                value={formValues.pessoasNaCasa}
-                onChange={handleInputChange}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Quantas pessoas moram na mesma casa? (Opcional)
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="Digite o número" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
+
+              {/* Empresa */}
+              {user?.role !== 'business' && (
+                <FormField
+                  control={form.control}
+                  name="empresaId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empresa</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a empresa" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {empresas.map((doc) => (
+                            <SelectItem key={doc.id} value={doc.id}>
+                              {doc.nomeFantasia}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              {user?.role === 'business' && (
+                <FormField
+                  control={form.control}
+                  name="empresaId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empresa</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a empresa" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem key={user.uid} value={user.uid || ''}>
+                            {user.displayName}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
-            {/* Empresa */}
-            <div className="form-item">
-              <label htmlFor="empresaId">Empresa</label>
-              <Select
-                value={formValues.empresaId}
-                onValueChange={(value) =>
-                  setFormValues({ ...formValues, empresaId: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {empresas.map((empresa) => (
-                    <SelectItem key={empresa.id} value={empresa.id}>
-                      {empresa.nomeFantasia}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <Button disabled={loading} type="submit">
-            {loading ? 'Atualizando Funcionário...' : 'Atualizar Funcionário'}
-          </Button>
-        </form>
+            <Button disabled={loading || updateLoading} type="submit">
+              {loading || updateLoading
+                ? 'Atualizando Funcionário...'
+                : 'Atualizar Funcionário'}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

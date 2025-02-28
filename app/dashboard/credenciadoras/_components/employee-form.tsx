@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
 import { createLogin } from '@/lib/createLogin';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -72,11 +73,9 @@ const formSchema = z.object({
     .string()
     .min(13, { message: 'Telefone deve ter pelo menos 10 caracteres.' }),
   contatoResponsavel: z.object({
-    nome: z
-      .string()
-      .min(2, {
-        message: 'Nome do responsável deve ter pelo menos 2 caracteres.'
-      }),
+    nome: z.string().min(2, {
+      message: 'Nome do responsável deve ter pelo menos 2 caracteres.'
+    }),
     email: z.string().email({ message: 'Email inválido.' }),
     telefone: z
       .string()
@@ -104,6 +103,8 @@ export default function CredenciadoraForm() {
   });
 
   const router = useRouter();
+
+  const { documents: segmentos } = useFetchDocuments('segmentos');
 
   // Hook do Firestore
   const { addDocument, loading } = useFirestore({
@@ -341,37 +342,11 @@ export default function CredenciadoraForm() {
                         <SelectValue placeholder="Selecione o segmento" />
                       </SelectTrigger>
                       <SelectContent className="max-h-60 overflow-y-auto">
-                        <SelectItem value="agronegocio">Agronegócio</SelectItem>
-                        <SelectItem value="alimentacao">Alimentação</SelectItem>
-                        <SelectItem value="artes_publicidade">
-                          Artes e Publicidade
-                        </SelectItem>
-                        <SelectItem value="automotivo">Automotivo</SelectItem>
-                        <SelectItem value="beleza_estetica">
-                          Beleza e Estética
-                        </SelectItem>
-                        <SelectItem value="comercio">Comércio</SelectItem>
-                        <SelectItem value="confeccoes">Confecções</SelectItem>
-                        <SelectItem value="construcao">Construção</SelectItem>
-                        <SelectItem value="consultoria">Consultoria</SelectItem>
-                        <SelectItem value="educacao">Educação</SelectItem>
-                        <SelectItem value="eletronicos">Eletrônicos</SelectItem>
-                        <SelectItem value="empresas_variadas">
-                          Empresas Variadas
-                        </SelectItem>
-                        <SelectItem value="financas">Finanças</SelectItem>
-                        <SelectItem value="hospedagem_turismo">
-                          Hospedagem e Turismo
-                        </SelectItem>
-                        <SelectItem value="industria">Indústria</SelectItem>
-                        <SelectItem value="logistica_transporte">
-                          Logística e Transporte
-                        </SelectItem>
-                        <SelectItem value="saude">Saúde</SelectItem>
-                        <SelectItem value="servicos_gerais">
-                          Serviços Gerais
-                        </SelectItem>
-                        <SelectItem value="tecnologia">Tecnologia</SelectItem>
+                        {segmentos.map((segmento) => (
+                          <SelectItem key={segmento.id} value={segmento.id}>
+                            {segmento.nome}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

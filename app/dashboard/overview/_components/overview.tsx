@@ -18,12 +18,14 @@ import {
   ShieldCheck,
   Users
 } from 'lucide-react';
+import * as XLSX from 'xlsx'; // Importe a biblioteca xlsx
 
 // Interfaces para tipagem dos dados
 interface Solicitacao {
   credenciado_id: string;
+  donoId: string;
   preco: number;
-  status: 'pendente' | 'confirmado';
+  status: 'pendente' | 'confirmado' | 'confirmada';
 }
 
 interface Funcionario {
@@ -46,7 +48,6 @@ export default function OverViewPage() {
   const { documents: empresas, loading, error } = useFetchDocuments('empresas');
   const { documents: planos } = useFetchDocuments('planos');
   const { documents: funcionarios } = useFetchDocuments('funcionarios');
-  // Removido o parâmetro genérico, fazendo cast para Credenciado[]
   const { documents: credenciados } = useFetchDocuments(
     'credenciados'
   ) as unknown as { documents: Credenciado[] };
@@ -100,6 +101,63 @@ export default function OverViewPage() {
       .slice(0, 5);
   };
 
+  const handleExport = () => {
+    // Dados resumidos
+    const resumoData = [
+      {
+        'Empresas Ativas': empresas?.length || 0,
+        'Credenciados Ativos': credenciados?.length || 0,
+        'Funcionários Ativos': funcionarios?.length || 0,
+        'Planos Ativos': planos?.length || 0,
+        'Serviços Totais': solicitacoes?.length || 0
+      }
+    ];
+
+    // Dados de empresas e funcionários
+    const empresasData =
+      empresas?.map((empresa) => ({
+        Empresa: empresa.nomeFantasia,
+        Funcionários:
+          funcionarios?.filter((f: Funcionario) => f.empresaId === empresa.id)
+            .length || 0
+      })) || [];
+
+    // Dados de faturamento por credenciado
+    const solicitacoesConfirmadas =
+      solicitacoes?.filter(
+        (s: Solicitacao) =>
+          s.status === 'confirmado' || s.status === 'confirmada'
+      ) || [];
+
+    const faturamentoData =
+      credenciados?.map((credenciado) => {
+        const total = solicitacoesConfirmadas
+          .filter(
+            (s: Solicitacao) =>
+              s.donoId === credenciado.id || s.credenciado_id === credenciado.id
+          )
+          .reduce((sum, s) => sum + s.preco, 0);
+        return {
+          Credenciado: credenciado.nomeFantasia,
+          'Faturamento Total': total
+        };
+      }) || [];
+
+    // Criar worksheets
+    const resumoWS = XLSX.utils.json_to_sheet(resumoData);
+    const empresasWS = XLSX.utils.json_to_sheet(empresasData);
+    const faturamentoWS = XLSX.utils.json_to_sheet(faturamentoData);
+
+    // Criar workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, resumoWS, 'Resumo');
+    XLSX.utils.book_append_sheet(wb, empresasWS, 'Empresas');
+    XLSX.utils.book_append_sheet(wb, faturamentoWS, 'Faturamento');
+
+    // Salvar arquivo
+    XLSX.writeFile(wb, 'dados_gerenciais.xlsx');
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -123,6 +181,9 @@ export default function OverViewPage() {
           <h2 className="text-2xl font-bold tracking-tight">
             Painel Gerencial - Visão Geral
           </h2>
+          {/* <Button onClick={handleExport}>
+            Exportar para Excel
+          </Button> */}
         </div>
 
         {/* Cards Principais */}

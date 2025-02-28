@@ -1,6 +1,6 @@
 'use client';
 
-import { db } from '@/service/firebase'; // Supondo que o Firebase está configurado aqui
+import { db } from '@/service/firebase';
 import {
   collection,
   doc,
@@ -14,15 +14,14 @@ import {
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
-// Definindo o tipo de um documento
 interface Document {
   id: string;
-  [key: string]: any; // Pode ser ajustado conforme a estrutura dos seus documentos
+  [key: string]: any;
 }
 
 interface Filters {
-  id?: string; // Adicionado o filtro por ID
-  [key: string]: any; // Outros filtros dinâmicos, podem ser ajustados
+  id?: string;
+  [key: string]: any;
 }
 
 const useFetchDocuments = (collectionName: string, filters?: Filters) => {
@@ -36,38 +35,49 @@ const useFetchDocuments = (collectionName: string, filters?: Filters) => {
 
     try {
       if (filters?.id) {
-        // Caso um ID seja fornecido, busca apenas o documento com esse ID
+        // Busca por ID específico
         const docRef = doc(db, collectionName, filters.id);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setDocuments([{ id: docSnap.id, ...docSnap.data() }]);
+          const data = docSnap.data();
+          // Verifica se o documento não está marcado como deletado
+          if (data.isDelete !== true) {
+            setDocuments([{ id: docSnap.id, ...data }]);
+          } else {
+            setDocuments([]);
+          }
         } else {
-          setDocuments([]); // Documento não encontrado
+          setDocuments([]);
         }
       } else {
-        // Caso contrário, realiza uma consulta com filtros dinâmicos
+        // Consulta geral com filtros
         let queryRef: Query<DocumentData> = collection(db, collectionName);
 
         if (filters) {
           Object.keys(filters).forEach((key) => {
             const value = filters[key];
             if (key !== 'id' && value) {
+              // Removeu a exclusão do isDelete aqui
               queryRef = query(queryRef, where(key, '==', value));
             }
           });
         }
 
         const querySnapshot: QuerySnapshot = await getDocs(queryRef);
-        const docs: Document[] = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+
+        // Filtra localmente os documentos não deletados
+        const docs: Document[] = querySnapshot.docs
+          .filter((doc) => doc.data().isDeleted !== true) // Filtra documentos não deletados
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
 
         setDocuments(docs);
       }
     } catch (err: any) {
-      console.log(err);
+      console.error(err);
       setError('Erro ao buscar documentos: ' + err.message);
     } finally {
       setLoading(false);

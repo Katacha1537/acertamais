@@ -24,6 +24,12 @@ export default function EmployeeListingPage() {
   } = useFetchDocuments('funcionarios');
 
   const {
+    documents: accrediting,
+    loading: accreditingLoading,
+    error: accreditingError
+  } = useFetchDocuments('credenciadoras');
+
+  const {
     documents: companies,
     loading: companiesLoading,
     error: companiesError
@@ -46,11 +52,30 @@ export default function EmployeeListingPage() {
       let filteredEmployees = employees;
 
       if (user.role === 'business') {
+        // Filtro para business permanece o mesmo
         filteredEmployees = employees.filter(
           (employee) => employee.empresaId === user.uid
         );
+      } else if (user.role === 'accrediting') {
+        // Filtra as empresas cujo accrediting_Id é igual ao user.uid
+        const accreditingCompanies = companies.filter(
+          (company) => company.accrediting_Id === user.uid
+        );
+
+        // Obtém os IDs das empresas filtradas
+        const accreditingCompanyIds = accreditingCompanies.map(
+          (company) => company.id
+        );
+        console.log(accreditingCompanyIds);
+        console.log(employees);
+        // Filtra os funcionários que pertencem a essas empresas
+        filteredEmployees = employees.filter((employee) =>
+          accreditingCompanyIds.includes(employee.empresaId)
+        );
       }
+
       console.log(filteredEmployees);
+
       const merged = filteredEmployees.map((employee) => {
         const companyName =
           companies.find((company) => company.id === employee.empresaId)
@@ -64,7 +89,7 @@ export default function EmployeeListingPage() {
 
       setMergedEmployees(merged);
     }
-  }, [employees, user]);
+  }, [employees, companies, user]);
 
   const totalEmployees = mergedEmployees?.length || 0;
 

@@ -76,7 +76,9 @@ export default function PlanForm() {
       accrediting_Id:
         user?.role === 'accrediting' ? user?.uid : values.accrediting_Id, // Se for acreditador, usa o UID do usuário
       accrediting_name:
-        user?.role === 'accrediting' ? user?.displayName || null : undefined // Nome do acreditador ou undefined
+        user?.role === 'accrediting'
+          ? user?.displayName || null
+          : values.accrediting_Id // Nome do acreditador ou undefined
     };
 
     if (
@@ -85,6 +87,8 @@ export default function PlanForm() {
     ) {
       delete dataToSave.accrediting_name;
     }
+
+    console.log(dataToSave);
 
     addDocument(dataToSave, null); // Envia os dados para o Firestore
   }
@@ -157,7 +161,8 @@ export default function PlanForm() {
                       <FormLabel>Selecionar Credenciadora</FormLabel>
                       <FormControl>
                         <Select
-                          {...field}
+                          onValueChange={field.onChange} // Conecta o evento ao react-hook-form
+                          value={field.value} // Garante que o valor atual seja refletido
                           disabled={accreditorsLoading} // Desabilita o select enquanto carrega as credenciadoras
                         >
                           <SelectTrigger className="w-full">

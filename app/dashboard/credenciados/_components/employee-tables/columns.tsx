@@ -1,5 +1,4 @@
 'use client';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ColumnDef } from '@tanstack/react-table';
 import { CellAction } from './cell-action';
 import { LogoPreview } from './logo-preview';
@@ -53,6 +52,14 @@ export const columns: ColumnDef<Company>[] = [
   {
     accessorKey: 'razaoSocial',
     header: 'Razão Social'
+  },
+  {
+    accessorKey: 'accrediting_name',
+    header: 'Credenciadora'
+  },
+  {
+    accessorKey: 'planName',
+    header: 'Plano'
   },
   {
     accessorKey: 'cnpj',

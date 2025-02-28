@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Employee } from '@/constants/data';
 import { useUpdateContext } from '@/context/GlobalUpdateContext.tsx';
-import useDeleteDocument from '@/hooks/useDeleteDocument';
+import { useFirestore } from '@/hooks/useFirestore';
 import { Edit, MoreHorizontal, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -25,27 +25,30 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const {
-    deleteDocument,
-    loading: deleteLoading,
-    error
-  } = useDeleteDocument('servicos');
   const { triggerUpdate } = useUpdateContext();
+  const { updateDocument } = useFirestore({
+    collectionName: 'servicos',
+    onSuccess: () => {
+      toast.success('servico deletado com sucesso!');
+      triggerUpdate();
+    },
+    onError: () => {
+      toast.error('Erro ao deletar servico.');
+    }
+  });
 
   const onConfirm = async () => {
     setLoading(true);
     try {
-      const success = await deleteDocument(data.id); // Certifique-se de que a coleção está correta
-      console.log(success);
-      if (success) {
-        toast.success('servico deletado com Sucesso!');
-        setOpen(false);
-        triggerUpdate();
-      } else {
-        toast.error('Erro ao deletar o servico.');
-      }
+      // Ao invés de deletar, atualiza o documento com isDeleted: true
+      await updateDocument(data.id, {
+        ...data,
+        isDeleted: true,
+        deletedAt: new Date().toISOString() // Opcional: adicionar data de "exclusão"
+      });
+      setOpen(false);
     } catch (err) {
-      toast.error('Erro inesperado ao deletar o servico.');
+      toast.error('Erro ao deletar servico.');
     } finally {
       setLoading(false);
     }
@@ -57,7 +60,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         isOpen={open}
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
-        loading={loading || deleteLoading}
+        loading={loading}
       />
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue
@@ -68,6 +69,7 @@ const formSchema = z.object({
     })
   }),
   accrediting_name: z.string().optional(),
+  accrediting_Id: z.string().optional(),
   planos: z.string().min(1, {
     message: 'Selecione um plano.'
   })
@@ -102,19 +104,44 @@ export default function EmpresaForm() {
   const { user } = useUser(); // Obtém o usuário atual
 
   const { documents: plans, loading, error } = useFetchDocuments('planos');
+  const {
+    documents: accreditors,
+    loading: accreditorsLoading,
+    error: accreditorsError
+  } = useFetchDocuments('credenciadoras');
   const [filteredPlans, setFilteredPlans] = useState(plans);
+  const [selectedAccreditor, setSelectedAccreditor] = useState<string | null>(
+    null
+  );
+  const [isAccreditorActive, setIsAccreditorActive] = useState<boolean>(true);
 
   // Filtra os planos se o user.role for 'accrediting'
   useEffect(() => {
     if (user?.role === 'accrediting') {
+      // Se o usuário for uma credenciadora, filtra pelos planos dela
       const filtered = plans?.filter(
         (plan) => plan.accrediting_Id === user?.uid
       );
-      setFilteredPlans(filtered);
+      setFilteredPlans(filtered || []);
+
+      setIsAccreditorActive(false);
+    } else if (selectedAccreditor) {
+      // Se houver uma credenciadora selecionada, filtra por ela
+      const filtered = plans?.filter(
+        (plan) => plan.accrediting_Id === selectedAccreditor
+      );
+      setFilteredPlans(filtered || []);
+      setIsAccreditorActive(false);
+      if (filtered.length === 0) {
+        setIsAccreditorActive(true);
+      }
     } else {
-      setFilteredPlans(plans);
+      // Caso contrário, limpa a lista
+      setFilteredPlans([]);
+
+      setIsAccreditorActive(true);
     }
-  }, [plans, user?.role]);
+  }, [selectedAccreditor, plans, user?.role, user?.uid]);
 
   const { addDocument, loading: addLoading } = useFirestore({
     collectionName: 'empresas',
@@ -145,9 +172,12 @@ export default function EmpresaForm() {
     // Verifica se o campo accrediting_name existe, caso contrário, omite ou define como null
     const dataToSave = {
       ...values,
-      accrediting_Id: user?.uid, // Adiciona o ID do usuário atual
+      accrediting_Id:
+        user?.role === 'accrediting' ? user?.uid : values.accrediting_Id, // Se for acreditador, usa o UID do usuário
       accrediting_name:
-        user?.role === 'accrediting' ? user?.displayName || null : undefined // Verifica se o nome do acreditador deve ser enviado
+        user?.role === 'accrediting'
+          ? user?.displayName || null
+          : values.accrediting_Id // Nome do acreditador ou undefined
     };
 
     // Remover o campo accrediting_name se ele for null ou undefined
@@ -371,13 +401,77 @@ export default function EmpresaForm() {
                 )}
               />
             </div>
+
+            {/* Formulário para Credenciadora */}
+            {user?.role === 'accrediting' ? (
+              <FormField
+                control={form.control}
+                name="accrediting_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Credenciadora</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        disabled
+                        defaultValue={user?.displayName || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="accrediting_Id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Selecionar Credenciadora</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value}
+                        disabled={accreditorsLoading} // Desabilita o select enquanto carrega as credenciadoras
+                        onValueChange={(value) => {
+                          field.onChange(value); // Atualiza o valor no campo do formulário
+                          setSelectedAccreditor(value); // Atualiza o estado do accreditor selecionado
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione uma credenciadora" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {accreditors?.map((accreditor) => (
+                              <SelectItem
+                                key={accreditor.id}
+                                value={accreditor.id}
+                              >
+                                {accreditor.nomeFantasia}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Seleção de Planos */}
             <FormField
               control={form.control}
               name="planos"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Plano Disponível</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <FormLabel>Planos</FormLabel>
+                  <Select
+                    onValueChange={field.onChange} // Conecta o evento ao react-hook-form
+                    value={field.value} // Garante que o valor atual seja refletido
+                    disabled={isAccreditorActive} // Desabilita até uma credenciadora ser selecionada
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o plano" />
@@ -395,26 +489,7 @@ export default function EmpresaForm() {
                 </FormItem>
               )}
             />
-            {user?.role === 'accrediting' && (
-              <FormField
-                control={form.control}
-                name="accrediting_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Acreditador</FormLabel>
-                    <FormControl>
-                      {/* Garantindo que o valor é uma string */}
-                      <Input
-                        {...field} // 'field' already handles value and onChange
-                        disabled
-                        defaultValue={user?.displayName || ''} // Set default value if user.displayName is null
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+
             <Button disabled={addLoading} type="submit">
               {addLoading ? 'Criando Empresa...' : 'Criar Empresa'}
             </Button>

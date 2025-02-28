@@ -18,6 +18,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { useDocumentById } from '@/hooks/useDocumentById';
+import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { useFirestore } from '@/hooks/useFirestore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useParams, useRouter } from 'next/navigation';
@@ -59,6 +60,7 @@ const formSchema = z.object({
   nomeFantasia: z
     .string()
     .min(2, { message: 'Nome Fantasia deve ter pelo menos 2 caracteres.' }),
+  emailAcess: z.string().email({ message: 'Email inválido.' }),
   cnpj: z.string().regex(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, {
     message: 'CNPJ deve ter o formato correto.'
   }),
@@ -80,6 +82,15 @@ const formSchema = z.object({
       .string()
       .min(13, { message: 'Telefone deve ter pelo menos 13 caracteres.' })
   }),
+  contatoResponsavel: z.object({
+    nome: z.string().min(2, {
+      message: 'Nome do responsável deve ter pelo menos 2 caracteres.'
+    }),
+    email: z.string().email({ message: 'Email inválido.' }),
+    telefone: z
+      .string()
+      .min(13, { message: 'Telefone deve ter pelo menos 13 caracteres.' })
+  }),
   segmento: z
     .string()
     .min(3, { message: 'Segmento deve ter pelo menos 3 caracteres.' })
@@ -88,25 +99,25 @@ const formSchema = z.object({
 export default function CredenciadoFormEdit() {
   const params = useParams();
   const router = useRouter();
-  const credenciadoId = Array.isArray(params.credenciadoId)
-    ? params.credenciadoId[0]
-    : params.credenciadoId;
+  const credenciadoId = Array.isArray(params.credenciadoraId)
+    ? params.credenciadoraId[0]
+    : params.credenciadoraId;
 
   // Hook para pegar o documento do Firestore
   const { data, loading: dataLoading } = useDocumentById(
-    'credenciados',
+    'credenciadoras',
     credenciadoId
   );
   // Hook para atualizar o documento no Firestore
   const { updateDocument } = useFirestore({
-    collectionName: 'credenciados',
+    collectionName: 'credenciadoras',
     onSuccess: () => {
-      toast.success('Credenciado atualizado com sucesso!');
-      router.push('/dashboard/credenciados');
+      toast.success('Credenciadora atualizada com sucesso!');
+      router.push('/dashboard/credenciadoras');
     },
     onError: (err) => {
       console.error(err);
-      toast.error('Erro ao atualizar o credenciado.');
+      toast.error('Erro ao atualizar o credenciadora.');
     }
   });
 
@@ -115,14 +126,17 @@ export default function CredenciadoFormEdit() {
     defaultValues: {
       razaoSocial: '',
       nomeFantasia: '',
+      emailAcess: '',
       cnpj: '',
       endereco: '',
       cep: '',
       telefone: '',
-      contatoRH: { nome: '', email: '', telefone: '' },
+      contatoResponsavel: { nome: '', email: '', telefone: '' },
       segmento: ''
     }
   });
+
+  const { documents: segmentos } = useFetchDocuments('segmentos');
 
   // Atualiza os valores do formulário quando os dados são carregados
   useEffect(() => {
@@ -130,17 +144,23 @@ export default function CredenciadoFormEdit() {
       form.reset({
         razaoSocial: data.razaoSocial || '',
         nomeFantasia: data.nomeFantasia || '',
+        emailAcess: data.emailAcess || '',
         cnpj: data.cnpj || '',
         endereco: data.endereco || '',
         cep: data.cep || '',
         telefone: data.telefone || '',
-        contatoRH: data.contatoRH || { nome: '', email: '', telefone: '' },
+        contatoResponsavel: data.contatoResponsavel || {
+          nome: '',
+          email: '',
+          telefone: ''
+        },
         segmento: data.segmento || ''
       });
     }
   }, [data, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    console.log('Form Submitted with values:', values); // Verifique se chega aqui
     updateDocument(credenciadoId, values);
   };
 
@@ -148,12 +168,18 @@ export default function CredenciadoFormEdit() {
     <Card className="mx-auto w-full">
       <CardHeader>
         <CardTitle className="text-left text-2xl font-bold">
-          Editar Credenciado
+          Editar Credenciadora
         </CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form
+            onSubmit={form.handleSubmit((values) => {
+              console.log('Form Submitted with values:', values); // Verifique se chega aqui
+              updateDocument(credenciadoId, values);
+            })}
+            className="space-y-8"
+          >
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Razão Social */}
               <FormField
@@ -179,6 +205,24 @@ export default function CredenciadoFormEdit() {
                     <FormLabel>Nome Fantasia</FormLabel>
                     <FormControl>
                       <Input placeholder="Digite o nome fantasia" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="emailAcess"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email de acesso</FormLabel>
+                    <FormControl>
+                      <Input
+                        disabled
+                        placeholder="Digite o email de acesso"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -266,10 +310,10 @@ export default function CredenciadoFormEdit() {
               {/* Contato RH - Nome */}
               <FormField
                 control={form.control}
-                name="contatoRH.nome"
+                name="contatoResponsavel.nome"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome do Contato RH</FormLabel>
+                    <FormLabel>Nome do Responsável</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Digite o nome do contato"
@@ -284,10 +328,10 @@ export default function CredenciadoFormEdit() {
               {/* Contato RH - Email */}
               <FormField
                 control={form.control}
-                name="contatoRH.email"
+                name="contatoResponsavel.email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email do Contato RH</FormLabel>
+                    <FormLabel>Email do Responsável</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Digite o email do contato"
@@ -302,10 +346,10 @@ export default function CredenciadoFormEdit() {
               {/* Contato RH - Telefone */}
               <FormField
                 control={form.control}
-                name="contatoRH.telefone"
+                name="contatoResponsavel.telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone do Contato RH</FormLabel>
+                    <FormLabel>Telefone do Responsável</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Digite o telefone do contato"
@@ -336,37 +380,11 @@ export default function CredenciadoFormEdit() {
                         <SelectValue placeholder="Selecione o segmento" />
                       </SelectTrigger>
                       <SelectContent className="max-h-60 overflow-y-auto">
-                        <SelectItem value="agronegocio">Agronegócio</SelectItem>
-                        <SelectItem value="alimentacao">Alimentação</SelectItem>
-                        <SelectItem value="artes_publicidade">
-                          Artes e Publicidade
-                        </SelectItem>
-                        <SelectItem value="automotivo">Automotivo</SelectItem>
-                        <SelectItem value="beleza_estetica">
-                          Beleza e Estética
-                        </SelectItem>
-                        <SelectItem value="comercio">Comércio</SelectItem>
-                        <SelectItem value="confeccoes">Confecções</SelectItem>
-                        <SelectItem value="construcao">Construção</SelectItem>
-                        <SelectItem value="consultoria">Consultoria</SelectItem>
-                        <SelectItem value="educacao">Educação</SelectItem>
-                        <SelectItem value="eletronicos">Eletrônicos</SelectItem>
-                        <SelectItem value="empresas_variadas">
-                          Empresas Variadas
-                        </SelectItem>
-                        <SelectItem value="financas">Finanças</SelectItem>
-                        <SelectItem value="hospedagem_turismo">
-                          Hospedagem e Turismo
-                        </SelectItem>
-                        <SelectItem value="industria">Indústria</SelectItem>
-                        <SelectItem value="logistica_transporte">
-                          Logística e Transporte
-                        </SelectItem>
-                        <SelectItem value="saude">Saúde</SelectItem>
-                        <SelectItem value="servicos_gerais">
-                          Serviços Gerais
-                        </SelectItem>
-                        <SelectItem value="tecnologia">Tecnologia</SelectItem>
+                        {segmentos.map((segmento) => (
+                          <SelectItem key={segmento.id} value={segmento.id}>
+                            {segmento.nome}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -379,8 +397,8 @@ export default function CredenciadoFormEdit() {
               type="submit"
             >
               {form.formState.isSubmitting
-                ? 'Atualizando credenciado...'
-                : 'Atualizar Credenciado'}
+                ? 'Atualizando credenciadora...'
+                : 'Atualizar Credenciadora'}
             </Button>
           </form>
         </Form>

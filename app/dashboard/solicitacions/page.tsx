@@ -126,6 +126,11 @@ const SolicitacaoAlertDialog: React.FC = () => {
     }
   };
 
+  function maskCPF(cpf: string): string {
+    if (!cpf || cpf.length < 11) return cpf; // Retorna original se não for válido
+    return `${cpf.slice(0, 3)}.XXX.XXX-${cpf.slice(-2)}`;
+  }
+
   const ClienteInfoModal = () => {
     if (!selectedSolicitacao) return null;
 
@@ -142,7 +147,20 @@ const SolicitacaoAlertDialog: React.FC = () => {
               </AlertDialogTitle>
             </div>
           </AlertDialogHeader>
-
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm">Serviço:</span>
+              <span className="text-sm font-medium">
+                {selectedSolicitacao.nome_servico}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm">Preço:</span>
+              <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                R$ {selectedSolicitacao.preco}
+              </span>
+            </div>
+          </div>
           <div className="space-y-4 py-4 dark:text-gray-300">
             <div className="space-y-2">
               {cliente && (
@@ -153,25 +171,22 @@ const SolicitacaoAlertDialog: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">CPF:</span>
-                    <span className="text-sm font-medium">{cliente.cpf}</span>
+                    <span className="text-sm font-medium">
+                      {maskCPF(cliente.cpf)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Telefone:</span>
+                    <span className="text-sm font-medium">
+                      {cliente.telefone}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">E-mail:</span>
+                    <span className="text-sm font-medium">{cliente.email}</span>
                   </div>
                 </>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm">Serviço:</span>
-                <span className="text-sm font-medium">
-                  {selectedSolicitacao.nome_servico}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Preço:</span>
-                <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                  R$ {selectedSolicitacao.preco}
-                </span>
-              </div>
             </div>
 
             <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
@@ -272,7 +287,7 @@ const SolicitacaoAlertDialog: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {solicitacao.createdAt.toDate().toLocaleDateString('pt-BR')}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-green-600 dark:text-green-400">
                     R$ {solicitacao.preco}
                   </p>
                   {cliente && (
@@ -286,7 +301,7 @@ const SolicitacaoAlertDialog: React.FC = () => {
                       <p className="text-gray-600 dark:text-gray-400">
                         CPF:{' '}
                         <span className="font-medium dark:text-gray-300">
-                          {cliente.cpf}
+                          {maskCPF(cliente.cpf)}
                         </span>
                       </p>
                     </div>

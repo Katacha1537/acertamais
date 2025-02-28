@@ -157,6 +157,14 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Segmentos',
+    url: '/dashboard/segmentos',
+    icon: 'crosshair',
+    isActive: false,
+    shortcut: ['d', 'd'],
+    items: []
+  },
+  {
     title: 'Crendenciadoras',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'shildCheck',

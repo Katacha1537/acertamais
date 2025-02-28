@@ -29,6 +29,33 @@ import InputMask from 'react-input-mask';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
+function isValidCPF(cpf: string): boolean {
+  cpf = cpf.replace(/\D/g, ''); // Remove caracteres não numéricos
+  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+
+  let sum = 0;
+  let remainder;
+
+  // Primeiro dígito verificador
+  for (let i = 1; i <= 9; i++) {
+    sum += parseInt(cpf.charAt(i - 1)) * (11 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf.charAt(9))) return false;
+
+  // Segundo dígito verificador
+  sum = 0;
+  for (let i = 1; i <= 10; i++) {
+    sum += parseInt(cpf.charAt(i - 1)) * (12 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf.charAt(10))) return false;
+
+  return true;
+}
+
 // Validação do Formulário
 const formSchema = z.object({
   nome: z.string().min(2, {
@@ -45,12 +72,20 @@ const formSchema = z.object({
     .min(5, { message: 'Endereço deve ter pelo menos 5 caracteres.' }),
   cpf: z
     .string()
-    .regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF inválido.')
-    .refine(async (cpf) => {
-      const response = await fetch(`/api/check-cpf?cpf=${cpf}`);
-      const data = await response.json();
-      return !data.exists;
-    }, 'Este CPF já está cadastrado.'),
+    .optional()
+    .refine((value) => !value || isValidCPF(value), {
+      message: 'CPF inválido ou fictício.'
+    })
+    .refine(
+      async (value) => {
+        if (!value || !isValidCPF(value)) return true; // Se não há valor ou já é inválido, pula a checagem
+        const cpfClean = value.replace(/\D/g, ''); // Remove máscara para enviar à API
+        const response = await fetch(`/api/check-cpf?cpf=${cpfClean}`);
+        const data = await response.json();
+        return !data.exists; // Retorna true se o CPF NÃO existe (ou seja, é válido para cadastro)
+      },
+      { message: 'Este CPF já está cadastrado.' }
+    ),
   email: z
     .string()
     .email({ message: 'Por favor, insira um endereço de email válido.' }),

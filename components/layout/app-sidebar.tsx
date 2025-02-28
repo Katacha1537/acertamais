@@ -200,6 +200,7 @@ export default function AppSidebar() {
       case 'business':
         return items
           .filter((item) => item.title !== 'Dashboard') // Remove o Dashboard
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
           .filter((item) => item.title !== 'Solicitações') // Remove o Dashboard
           .filter((item) => item.title !== 'Crendenciadoras') // Remove o Dashboard
           .filter((item) => item.title !== 'Credenciados') // Remove o Dashboard
@@ -214,6 +215,7 @@ export default function AppSidebar() {
       case 'accredited':
         return items
           .filter((item) => item.title !== 'Dashboard')
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
           .filter((item) => item.title !== 'Empresas')
           .filter((item) => item.title !== 'Crendenciadoras')
           .map((item) => ({
@@ -227,6 +229,7 @@ export default function AppSidebar() {
       case 'accrediting':
         return items
           .filter((item) => item.title !== 'Dashboard') // Remove o Dashboard
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
           .filter((item) => item.title !== 'Solicitações') // Remove o Dashboard
           .map((item) => ({
             ...item,
