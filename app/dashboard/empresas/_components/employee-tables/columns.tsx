@@ -33,10 +33,6 @@ export const columns: ColumnDef<Employee>[] = [
     header: 'Razão Social'
   },
   {
-    accessorKey: 'segmento',
-    header: 'Segmeto'
-  },
-  {
     accessorKey: 'cnpjCaepf',
     header: 'CPNJ ou CAEPF'
   },

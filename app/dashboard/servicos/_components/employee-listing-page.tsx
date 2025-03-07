@@ -2,21 +2,29 @@
 
 import PageContainer from '@/components/layout/page-container';
 import { buttonVariants } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'; // Componentes de dropdown
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
 import { useUpdateContext } from '@/context/GlobalUpdateContext.tsx';
 import { useUser } from '@/context/UserContext';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
+import { useFirestore } from '@/hooks/useFirestore'; // Para adicionar documentos
 import { cn } from '@/lib/utils';
-import { Plus } from 'lucide-react';
+import { MoreVertical, Plus, Upload } from 'lucide-react'; // Adicionar MoreVertical
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import Papa from 'papaparse'; // Para parsear CSV
+import { ChangeEvent, useEffect, useState } from 'react';
+import { toast } from 'sonner'; // Para notificações
 import EmployeeTable from './employee-tables';
 
 export default function ServiceListingPage() {
-  const { user } = useUser(); // Obtém o usuário atual
+  const { user } = useUser();
 
-  // Carregar serviços
   const {
     documents: services,
     fetchDocuments,
@@ -24,7 +32,6 @@ export default function ServiceListingPage() {
     error: servicesError
   } = useFetchDocuments('servicos');
 
-  // Carregar credenciados
   const {
     documents: credenciados,
     loading: credenciadosLoading,
@@ -35,6 +42,18 @@ export default function ServiceListingPage() {
     loading: credenciadorasLoading,
     error: credenciadorasError
   } = useFetchDocuments('credenciadoras');
+
+  const { addDocument } = useFirestore({
+    collectionName: 'servicos',
+    onSuccess: () => {
+      toast.success('Serviços importados com sucesso!');
+      fetchDocuments(); // Atualiza a lista após importação
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error('Erro ao importar serviços.');
+    }
+  });
 
   const [filteredServices, setFilteredServices] = useState<any[]>([]);
 
@@ -57,32 +76,24 @@ export default function ServiceListingPage() {
           (service) => service.credenciado_id === user.uid
         );
       } else if (user.role === 'accrediting') {
-        // Primeiro filtrar os credenciados desta credenciadora
         const credenciadosDaCredenciadora = credenciados.filter(
           (credenciado) => credenciado.accrediting_Id === user.uid
         );
-
-        // Pegar apenas os IDs dos credenciados filtrados
         const credenciadosIds = credenciadosDaCredenciadora.map((c) => c.id);
-
-        // Filtrar serviços que pertencem a esses credenciados
         filtered = services.filter((service) =>
           credenciadosIds.includes(service.credenciado_id)
         );
       }
 
-      // Processamento dos dados...
       const merged = filtered.map((service) => {
         const credenciado = credenciados.find(
           (c) => c.id === service.credenciado_id
         );
-
         const credenciadoName =
           credenciado?.nomeFantasia || 'Credenciado desconhecido';
         const accreditingName =
           credenciado?.accrediting_name || 'Credenciadora não informada';
 
-        // Cálculo do desconto
         let descontoPorcentagem = '0%';
         if (
           service.preco_original &&
@@ -99,7 +110,7 @@ export default function ServiceListingPage() {
         return {
           ...service,
           credenciadoName,
-          accreditingName, // Novo campo adicionado
+          accreditingName,
           descontoPorcentagem
         };
       });
@@ -110,6 +121,77 @@ export default function ServiceListingPage() {
 
   const totalServices = filteredServices?.length || 0;
 
+  // Função para processar o upload do CSV
+  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (result) => {
+        const csvData = result.data as any[];
+
+        for (const row of csvData) {
+          try {
+            const serviceData = {
+              credenciado_id:
+                user?.role === 'accredited'
+                  ? user.uid
+                  : credenciados.find(
+                      (credenciado) =>
+                        credenciado.nomeFantasia === row['credenciado']
+                    )?.id || '',
+              nome_servico: row['nome_servico'] || '',
+              descricao: row['descricao'] || '',
+              preco_original: Number(row['preco_original']) || 0,
+              preco_com_desconto: Number(row['preco_com_desconto']) || 0,
+              imagemUrl: row['imagemUrl'] || null,
+              createdAt: new Date().toISOString()
+            };
+
+            if (!serviceData.credenciado_id) {
+              throw new Error(
+                `Credenciado "${row['credenciado']}" não encontrado.`
+              );
+            }
+
+            await addDocument(serviceData, null);
+          } catch (error) {
+            console.error('Erro ao processar linha do CSV:', error);
+            toast.error(`Erro ao importar serviço: ${row['nome_servico']}`);
+          }
+        }
+      },
+      error: (error) => {
+        console.error('Erro ao parsear CSV:', error);
+        toast.error('Erro ao processar o arquivo CSV.');
+      }
+    });
+
+    event.target.value = '';
+  };
+
+  // Função para baixar o template CSV
+  const downloadTemplate = () => {
+    const templateHeaders = [
+      'nome_servico',
+      'descricao',
+      'preco_original',
+      'preco_com_desconto',
+      'imagemUrl'
+    ];
+    const csvContent = `${templateHeaders.join(',')}\n`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'template_servicos.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <PageContainer scrollable>
       <div className="space-y-4">
@@ -118,17 +200,45 @@ export default function ServiceListingPage() {
             title={`Serviços (${totalServices})`}
             description="Gerenciar Serviços."
           />
-
-          <Link
-            href={'/dashboard/servicos/novo'}
-            className={cn(buttonVariants({ variant: 'default' }))}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add Novo Serviço
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href={'/dashboard/servicos/novo'}
+              className={cn(buttonVariants({ variant: 'default' }))}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add Novo Serviço
+            </Link>
+            <label
+              className={cn(
+                buttonVariants({ variant: 'default' }),
+                'cursor-pointer'
+              )}
+            >
+              <Upload className="mr-2 h-4 w-4" /> Importar Serviços
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </label>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  buttonVariants({ variant: 'default', size: 'icon' })
+                )}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={downloadTemplate}>
+                  Baixar Template
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         <Separator />
 
-        {/* Renderização condicional para loading ou erro */}
         {servicesLoading || credenciadosLoading ? (
           <p>Carregando os dados...</p>
         ) : servicesError || credenciadosError ? (
