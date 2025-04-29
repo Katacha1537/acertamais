@@ -32,9 +32,7 @@ const formSchema = z.object({
   nome: z.string().min(2, {
     message: 'Nome do plano deve ter pelo menos 2 caracteres.'
   }),
-  descricao: z.string().min(10, {
-    message: 'Descrição deve ter pelo menos 10 caracteres.'
-  }),
+  descricao: z.string().optional(),
   accrediting_name: z.string().optional(),
   accrediting_Id: z.string().optional()
 });

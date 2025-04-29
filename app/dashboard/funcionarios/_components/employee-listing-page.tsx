@@ -144,7 +144,8 @@ export default function EmployeeListingPage() {
               uid: userUid,
               role: 'employee',
               name: employeeData.nome,
-              email: employeeData.email
+              email: employeeData.email,
+              firstLogin: true
             };
 
             await addUser(userInfo, null);

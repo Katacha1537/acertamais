@@ -53,12 +53,18 @@ export default function AppSidebar() {
   useEffect(() => {
     if (!user?.uid) return;
     let q;
-
+    console.log(user);
     if (user.role === 'accredited') {
       q = query(
         collection(db, 'solicitacoes'),
         where('status', '==', 'pendente'),
-        where('donoId', '==', user.uid)
+        where('credenciado_id', '==', user.uid)
+      );
+    } else if (user.role === 'user') {
+      q = query(
+        collection(db, 'solicitacoes'),
+        where('status', '==', 'pendente'),
+        where('credenciado_id', '==', user.credenciado_Id)
       );
     } else {
       q = query(
@@ -222,10 +228,19 @@ export default function AppSidebar() {
             ...item,
             items: item.items
               ? item.items.filter(
-                  (subItem) => subItem.title == 'listar Serviços'
+                  (subItem) =>
+                    subItem.title === 'listar Serviços' ||
+                    subItem.title === 'listar Usuários'
                 )
               : []
           }));
+      case 'user':
+        return items
+          .filter((item) => item.title !== 'Dashboard')
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
+          .filter((item) => item.title !== 'Empresas')
+          .filter((item) => item.title !== 'Crendenciadoras')
+          .filter((item) => item.title !== 'Credenciados');
       case 'accrediting':
         return items
           .filter((item) => item.title !== 'Dashboard') // Remove o Dashboard

@@ -9,31 +9,57 @@ import useFetchDocuments from '@/hooks/useFetchDocuments';
 import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import EmployeeTable from './employee-tables';
 
 export default function EmployeeListingPage() {
   const { updateFlag } = useUpdateContext();
+
+  // Busca credenciadoras
   const {
     documents: credenciadoras,
-    fetchDocuments,
-    loading,
-    error
+    fetchDocuments: fetchCredenciadoras,
+    loading: loadingCredenciadoras,
+    error: errorCredenciadoras
   } = useFetchDocuments('credenciadoras');
+
+  // Busca segmentos
+  const {
+    documents: segmentos,
+    fetchDocuments: fetchSegmentos,
+    loading: loadingSegmentos,
+    error: errorSegmentos
+  } = useFetchDocuments('segmentos');
 
   const totalCredenciadoras = credenciadoras?.length || 0;
 
+  // Combina os dados de credenciadoras com o nome do segmento
+  const enrichedCredenciadoras = useMemo(() => {
+    if (!credenciadoras || !segmentos) return credenciadoras;
+
+    return credenciadoras.map((credenciadora) => {
+      const segmento = segmentos.find(
+        (seg) => seg.id === credenciadora.segmento
+      );
+      return {
+        ...credenciadora,
+        segmentoNome: segmento ? segmento.nome : 'Sem Segmento' // Ajuste 'nome' conforme o campo real em segmentos
+      };
+    });
+  }, [credenciadoras, segmentos]);
+
   const handleRetry = useCallback(async () => {
     try {
-      await fetchDocuments();
+      await Promise.all([fetchCredenciadoras(), fetchSegmentos()]);
     } catch (error) {
       console.error('Failed to retry fetching:', error);
     }
-  }, [fetchDocuments]);
+  }, [fetchCredenciadoras, fetchSegmentos]);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [updateFlag, fetchDocuments]);
+    fetchCredenciadoras();
+    fetchSegmentos();
+  }, [updateFlag, fetchCredenciadoras, fetchSegmentos]);
 
   return (
     <PageContainer scrollable>
@@ -53,15 +79,17 @@ export default function EmployeeListingPage() {
         </div>
         <Separator />
 
-        {!credenciadoras ? (
+        {!credenciadoras || !segmentos ? (
           <div className="flex h-32 items-center justify-center">
             <p className="text-muted-foreground">
-              Carregando Credenciadoras...
+              Carregando Credenciadoras e Segmentos...
             </p>
           </div>
-        ) : error ? (
+        ) : errorCredenciadoras || errorSegmentos ? (
           <div className="flex h-32 flex-col items-center justify-center gap-4">
-            <p className="text-destructive">Erro ao carregar Credenciadoras</p>
+            <p className="text-destructive">
+              Erro ao carregar Credenciadoras ou Segmentos
+            </p>
             <button
               onClick={handleRetry}
               className={cn(buttonVariants({ variant: 'outline' }))}
@@ -71,7 +99,7 @@ export default function EmployeeListingPage() {
           </div>
         ) : (
           <EmployeeTable
-            data={credenciadoras}
+            data={enrichedCredenciadoras}
             totalData={totalCredenciadoras}
           />
         )}

@@ -160,7 +160,8 @@ export default function FuncionarioForm() {
       uid: userCreated,
       role: 'employee',
       name: newValues.nome,
-      email: newValues.email
+      email: newValues.email,
+      firstLogin: true
     };
 
     addUser(userInfo, null);
@@ -368,8 +369,8 @@ export default function FuncionarioForm() {
               )}
             </div>
 
-            <Button disabled={loadingOn} type="submit">
-              {loadingOn ? 'Criando Funcionário...' : 'Criar Funcionário'}
+            <Button disabled={addLoading} type="submit">
+              {addLoading ? 'Criando Funcionário...' : 'Criar Funcionário'}
             </Button>
           </form>
         </Form>

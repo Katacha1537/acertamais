@@ -1,4 +1,5 @@
 'use client';
+
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,16 +25,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const router = useRouter();
+
   const { triggerUpdate } = useUpdateContext();
 
   const { updateDocument } = useFirestore({
-    collectionName: 'funcionarios',
+    collectionName: 'planos',
     onSuccess: () => {
-      toast.success('funcionario deletado com sucesso!');
+      toast.success('plano deletado com sucesso!');
       triggerUpdate();
     },
     onError: () => {
-      toast.error('Erro Erro ao deletar funcionario.');
+      toast.error('Erro Erro ao deletar plano.');
     }
   });
 
@@ -44,17 +46,15 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       await updateDocument(data.id, {
         ...data,
         isDeleted: true,
-        status: 'disabled',
         deletedAt: new Date().toISOString() // Opcional: adicionar data de "exclusão"
       });
       setOpen(false);
     } catch (err) {
-      toast.error('Erro ao deletar funcionario.');
+      toast.error('Erro ao deletar plano.');
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <>
       <AlertModal
@@ -74,7 +74,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           <DropdownMenuLabel>Ações</DropdownMenuLabel>
 
           <DropdownMenuItem
-            onClick={() => router.push(`/dashboard/funcionarios/${data.id}`)}
+            onClick={() => router.push(`/dashboard/planos/${data.id}`)}
           >
             <Edit className="mr-2 h-4 w-4" /> Editar
           </DropdownMenuItem>

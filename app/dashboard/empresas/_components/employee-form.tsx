@@ -29,6 +29,32 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
+// Funções de máscara
+function maskCNPJ(value: string) {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{2})$/, '$1-$2')
+    .substring(0, 18);
+}
+
+function maskCEP(value: string) {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{5})(\d)/, '$1-$2')
+    .substring(0, 9);
+}
+
+function maskTelefone(value: string) {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{4,5})(\d{4})$/, '$1-$2')
+    .substring(0, 15);
+}
+
 // Validação do Formulário
 const formSchema = z.object({
   razaoSocial: z.string().min(2, {
@@ -38,14 +64,14 @@ const formSchema = z.object({
     message: 'Nome Fantasia deve ter pelo menos 2 caracteres.'
   }),
   emailAcess: z.string().email({ message: 'Email inválido.' }),
-  cnpjCaepf: z.string().min(11, {
-    message: 'CNPJ ou CAEPF deve ter pelo menos 11 caracteres.'
+  cnpjCaepf: z.string().regex(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, {
+    message: 'CNPJ deve ter o formato correto (XX.XXX.XXX/XXXX-XX).'
   }),
   endereco: z.string().min(5, {
     message: 'Endereço deve ter pelo menos 5 caracteres.'
   }),
-  cep: z.string().min(8, {
-    message: 'CEP deve ter 8 caracteres.'
+  cep: z.string().regex(/^\d{5}-\d{3}$/, {
+    message: 'CEP deve ter o formato correto (XXXXX-XXX).'
   }),
   numeroFuncionarios: z.number().positive({
     message: 'Número de funcionários deve ser positivo.'
@@ -55,8 +81,8 @@ const formSchema = z.object({
       message: 'Nome do RH deve ter pelo menos 2 caracteres.'
     }),
     email: z.string().email({ message: 'Email inválido.' }),
-    telefone: z.string().min(10, {
-      message: 'Telefone do RH deve ter pelo menos 10 caracteres.'
+    telefone: z.string().min(13, {
+      message: 'Telefone do RH deve ter pelo menos 13 caracteres.'
     })
   }),
   contatoFinanceiro: z.object({
@@ -64,8 +90,8 @@ const formSchema = z.object({
       message: 'Nome do Financeiro deve ter pelo menos 2 caracteres.'
     }),
     email: z.string().email({ message: 'Email inválido.' }),
-    telefone: z.string().min(10, {
-      message: 'Telefone do Financeiro deve ter pelo menos 10 caracteres.'
+    telefone: z.string().min(13, {
+      message: 'Telefone do Financeiro deve ter pelo menos 13 caracteres.'
     })
   }),
   accrediting_name: z.string().optional(),
@@ -101,8 +127,7 @@ export default function EmpresaForm() {
   });
 
   const router = useRouter();
-  const { user } = useUser(); // Obtém o usuário atual
-
+  const { user } = useUser();
   const { documents: plans, loading, error } = useFetchDocuments('planos');
   const {
     documents: accreditors,
@@ -114,19 +139,17 @@ export default function EmpresaForm() {
     null
   );
   const [isAccreditorActive, setIsAccreditorActive] = useState<boolean>(true);
+  const [isFetchingCNPJ, setIsFetchingCNPJ] = useState(false);
 
   // Filtra os planos se o user.role for 'accrediting'
   useEffect(() => {
     if (user?.role === 'accrediting') {
-      // Se o usuário for uma credenciadora, filtra pelos planos dela
       const filtered = plans?.filter(
         (plan) => plan.accrediting_Id === user?.uid
       );
       setFilteredPlans(filtered || []);
-
       setIsAccreditorActive(false);
     } else if (selectedAccreditor) {
-      // Se houver uma credenciadora selecionada, filtra por ela
       const filtered = plans?.filter(
         (plan) => plan.accrediting_Id === selectedAccreditor
       );
@@ -136,9 +159,7 @@ export default function EmpresaForm() {
         setIsAccreditorActive(true);
       }
     } else {
-      // Caso contrário, limpa a lista
       setFilteredPlans([]);
-
       setIsAccreditorActive(true);
     }
   }, [selectedAccreditor, plans, user?.role, user?.uid]);
@@ -160,27 +181,81 @@ export default function EmpresaForm() {
     collectionName: 'users'
   });
 
+  // Função para consultar a API da ReceitaWS
+  const fetchCNPJData = async (cnpj: string) => {
+    try {
+      setIsFetchingCNPJ(true);
+      const cleanCNPJ = cnpj.replace(/\D/g, '');
+      const response = await fetch(`/api/cnpj/${cleanCNPJ}`);
+
+      if (!response.ok) {
+        throw new Error('Erro ao consultar CNPJ');
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'ERROR') {
+        throw new Error(data.message || 'CNPJ inválido ou não encontrado');
+      }
+
+      form.setValue('razaoSocial', data.nome || '');
+      form.setValue('nomeFantasia', data.fantasia || '');
+      form.setValue('emailAcess', data.email || '');
+      form.setValue(
+        'endereco',
+        `${data.logradouro || ''}, ${data.numero || ''}, ${
+          data.municipio || ''
+        } - ${data.uf || ''}`
+      );
+      form.setValue('cep', maskCEP(data.cep || ''));
+      form.setValue('contatoRH.telefone', maskTelefone(data.telefone || ''));
+      form.setValue(
+        'contatoFinanceiro.telefone',
+        maskTelefone(data.telefone || '')
+      );
+
+      toast.success('Dados do CNPJ preenchidos com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao consultar os dados do CNPJ.'
+      );
+    } finally {
+      setIsFetchingCNPJ(false);
+    }
+  };
+
+  // Monitorar o campo CNPJ
+  const cnpj = form.watch('cnpjCaepf');
+
+  useEffect(() => {
+    if (cnpj && /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)) {
+      fetchCNPJData(cnpj);
+    }
+  }, [cnpj]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const userUid = await createLogin(values.emailAcess);
     const userInfo = {
       uid: userUid,
       role: 'business',
       name: values.nomeFantasia,
-      email: values.emailAcess
+      email: values.emailAcess,
+      firstLogin: true
     };
 
-    // Verifica se o campo accrediting_name existe, caso contrário, omite ou define como null
     const dataToSave = {
       ...values,
       accrediting_Id:
-        user?.role === 'accrediting' ? user?.uid : values.accrediting_Id, // Se for acreditador, usa o UID do usuário
+        user?.role === 'accrediting' ? user?.uid : values.accrediting_Id,
       accrediting_name:
         user?.role === 'accrediting'
           ? user?.displayName || null
-          : values.accrediting_Id // Nome do acreditador ou undefined
+          : values.accrediting_Id
     };
 
-    // Remover o campo accrediting_name se ele for null ou undefined
     if (
       dataToSave.accrediting_name === undefined ||
       dataToSave.accrediting_name === null
@@ -208,12 +283,36 @@ export default function EmpresaForm() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <FormField
                 control={form.control}
+                name="cnpjCaepf"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CNPJ</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Digite o CNPJ"
+                        value={field.value}
+                        onChange={(e) =>
+                          field.onChange(maskCNPJ(e.target.value))
+                        }
+                        disabled={isFetchingCNPJ}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="razaoSocial"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Razão Social</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite a razão social" {...field} />
+                      <Input
+                        placeholder="Digite a razão social"
+                        {...field}
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -226,13 +325,16 @@ export default function EmpresaForm() {
                   <FormItem>
                     <FormLabel>Nome Fantasia</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o nome fantasia" {...field} />
+                      <Input
+                        placeholder="Digite o nome fantasia"
+                        {...field}
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="emailAcess"
@@ -243,21 +345,8 @@ export default function EmpresaForm() {
                       <Input
                         placeholder="Digite o email de acesso"
                         {...field}
+                        disabled={isFetchingCNPJ}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="cnpjCaepf"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CNPJ ou CAEPF</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Digite o CNPJ ou CAEPF" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -270,7 +359,11 @@ export default function EmpresaForm() {
                   <FormItem>
                     <FormLabel>Endereço</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o endereço" {...field} />
+                      <Input
+                        placeholder="Digite o endereço"
+                        {...field}
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -283,7 +376,14 @@ export default function EmpresaForm() {
                   <FormItem>
                     <FormLabel>CEP</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o CEP" {...field} />
+                      <Input
+                        placeholder="Digite o CEP"
+                        value={field.value}
+                        onChange={(e) =>
+                          field.onChange(maskCEP(e.target.value))
+                        }
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -297,12 +397,13 @@ export default function EmpresaForm() {
                     <FormLabel>Número de Funcionários</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
+                        type="text"
                         placeholder="Digite o número de funcionários"
                         {...field}
                         onChange={(e) =>
                           field.onChange(Number(e.target.value) || 0)
                         }
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -318,7 +419,11 @@ export default function EmpresaForm() {
                   <FormItem>
                     <FormLabel>Nome do RH</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o nome do RH" {...field} />
+                      <Input
+                        placeholder="Digite o nome do RH"
+                        {...field}
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -331,7 +436,11 @@ export default function EmpresaForm() {
                   <FormItem>
                     <FormLabel>Email do RH</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o email do RH" {...field} />
+                      <Input
+                        placeholder="Digite o email do RH"
+                        {...field}
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -344,7 +453,14 @@ export default function EmpresaForm() {
                   <FormItem>
                     <FormLabel>Telefone do RH</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o telefone do RH" {...field} />
+                      <Input
+                        placeholder="Digite o telefone do RH"
+                        value={field.value}
+                        onChange={(e) =>
+                          field.onChange(maskTelefone(e.target.value))
+                        }
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -362,6 +478,7 @@ export default function EmpresaForm() {
                       <Input
                         placeholder="Digite o nome do Financeiro"
                         {...field}
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -378,6 +495,7 @@ export default function EmpresaForm() {
                       <Input
                         placeholder="Digite o email do Financeiro"
                         {...field}
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -393,7 +511,11 @@ export default function EmpresaForm() {
                     <FormControl>
                       <Input
                         placeholder="Digite o telefone do Financeiro"
-                        {...field}
+                        value={field.value}
+                        onChange={(e) =>
+                          field.onChange(maskTelefone(e.target.value))
+                        }
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -402,7 +524,6 @@ export default function EmpresaForm() {
               />
             </div>
 
-            {/* Formulário para Credenciadora */}
             {user?.role === 'accrediting' ? (
               <FormField
                 control={form.control}
@@ -431,10 +552,10 @@ export default function EmpresaForm() {
                     <FormControl>
                       <Select
                         value={field.value}
-                        disabled={accreditorsLoading} // Desabilita o select enquanto carrega as credenciadoras
+                        disabled={accreditorsLoading || isFetchingCNPJ}
                         onValueChange={(value) => {
-                          field.onChange(value); // Atualiza o valor no campo do formulário
-                          setSelectedAccreditor(value); // Atualiza o estado do accreditor selecionado
+                          field.onChange(value);
+                          setSelectedAccreditor(value);
                         }}
                       >
                         <SelectTrigger className="w-full">
@@ -460,7 +581,6 @@ export default function EmpresaForm() {
               />
             )}
 
-            {/* Seleção de Planos */}
             <FormField
               control={form.control}
               name="planos"
@@ -468,9 +588,9 @@ export default function EmpresaForm() {
                 <FormItem>
                   <FormLabel>Planos</FormLabel>
                   <Select
-                    onValueChange={field.onChange} // Conecta o evento ao react-hook-form
-                    value={field.value} // Garante que o valor atual seja refletido
-                    disabled={isAccreditorActive} // Desabilita até uma credenciadora ser selecionada
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={isAccreditorActive || isFetchingCNPJ}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -490,7 +610,7 @@ export default function EmpresaForm() {
               )}
             />
 
-            <Button disabled={addLoading} type="submit">
+            <Button disabled={addLoading || isFetchingCNPJ} type="submit">
               {addLoading ? 'Criando Empresa...' : 'Criar Empresa'}
             </Button>
           </form>

@@ -40,7 +40,7 @@ export const columns: ColumnDef<Employee>[] = [
     header: 'Telefone'
   },
   {
-    accessorKey: 'segmento',
+    accessorKey: 'segmentoNome',
     header: 'Segmento'
   },
   {

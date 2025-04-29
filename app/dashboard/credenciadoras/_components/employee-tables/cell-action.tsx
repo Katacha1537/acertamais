@@ -26,15 +26,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { triggerUpdate } = useUpdateContext();
-
   const { updateDocument } = useFirestore({
-    collectionName: 'credenciados',
+    collectionName: 'credenciadoras',
     onSuccess: () => {
-      toast.success('credenciado deletado com sucesso!');
+      toast.success('servico deletado com sucesso!');
       triggerUpdate();
     },
     onError: () => {
-      toast.error('Erro Erro ao deletar credenciado.');
+      toast.error('Erro ao deletar servico.');
     }
   });
 
@@ -42,6 +41,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     setLoading(true);
     try {
       // Ao invés de deletar, atualiza o documento com isDeleted: true
+      console.log(data);
       await updateDocument(data.id, {
         ...data,
         isDeleted: true,
@@ -49,7 +49,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       });
       setOpen(false);
     } catch (err) {
-      toast.error('Erro ao deletar credenciado.');
+      toast.error('Erro ao deletar servico.');
     } finally {
       setLoading(false);
     }

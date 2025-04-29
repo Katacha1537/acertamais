@@ -13,7 +13,14 @@ import { useUser } from '@/context/UserContext';
 import { auth, db } from '@/service/firebase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where
+} from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -31,14 +38,15 @@ const loginSchema = z.object({
 const resetSchema = z.object({
   emailResetPassword: z
     .string()
-    .email({ message: 'Endereço de e-mail inválido' }) // Campo renomeado
+    .email({ message: 'Endereço de e-mail inválido' })
 });
 
 const roleRoutes = {
   admin: '/dashboard/overview',
   business: '/dashboard/funcionarios',
   accredited: '/dashboard/servicos',
-  accrediting: '/dashboard/planos'
+  accrediting: '/dashboard/planos',
+  user: '/dashboard/solicitacions'
 };
 
 type LoginFormValue = z.infer<typeof loginSchema>;
@@ -51,6 +59,8 @@ interface UserDocument {
   photoURL: string | null;
   uid: string | null;
   role: 'business' | 'employee' | 'accredited' | 'admin';
+  credenciado_Id?: string;
+  firstLogin: boolean; // Novo campo para verificar primeiro login
   [key: string]: any;
 }
 
@@ -71,7 +81,7 @@ export default function UserAuthForm() {
   // Formulário de recuperação com campo separado
   const resetForm = useForm<ResetFormValue>({
     resolver: zodResolver(resetSchema),
-    defaultValues: { emailResetPassword: '' }, // Valor inicial ajustado
+    defaultValues: { emailResetPassword: '' },
     mode: 'onChange'
   });
 
@@ -88,6 +98,8 @@ export default function UserAuthForm() {
         photoURL: doc.data().photoURL,
         role: doc.data().role,
         uid: doc.data().uid,
+        credenciado_Id: doc.data().credenciado_Id,
+        firstLogin: doc.data().firstLogin ?? true, // Assume true se não definido
         ...doc.data()
       }));
       return userDocs.length > 0 ? userDocs[0] : null;
@@ -100,7 +112,47 @@ export default function UserAuthForm() {
     }
   };
 
-  // Função de login (mantida igual)
+  const updateFirstLogin = async (userId: string) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, { firstLogin: false });
+    } catch (error) {
+      console.error('Erro ao atualizar firstLogin:', error);
+      toast.error('Erro ao atualizar status de login.');
+    }
+  };
+
+  // Função para enviar email de redefinição de senha
+  const sendPasswordResetEmail = async (email: string) => {
+    setResetLoading(true);
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error);
+      }
+
+      toast.success(
+        'Email de recuperação enviado! Verifique sua caixa de entrada para redefinir sua senha.'
+      );
+      setIsResetMode(true);
+      resetForm.setValue('emailResetPassword', email);
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao enviar email de recuperação.');
+      console.error(error);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Função de login
   const onLoginSubmit = async (data: LoginFormValue) => {
     setLoginLoading(true);
     try {
@@ -111,6 +163,20 @@ export default function UserAuthForm() {
       }
       if (userInfo.role === 'employee') {
         toast.error('Funcionários não têm acesso ao painel admin.');
+        return;
+      }
+
+      // Verificar se é o primeiro login
+      if (userInfo.firstLogin) {
+        await sendPasswordResetEmail(data.email);
+        toast.info(
+          'Como este é seu primeiro login, você deve redefinir sua senha.'
+        );
+
+        const updatedUserInfo = await fetchUserData(data.email);
+        if (updatedUserInfo?.firstLogin) {
+          await updateFirstLogin(updatedUserInfo.id);
+        }
         return;
       }
 
@@ -125,8 +191,11 @@ export default function UserAuthForm() {
         email: user.email,
         uid: user.uid,
         role: userInfo.role,
-        displayName: user.displayName || userInfo.name || '',
-        photoURL: user.photoURL || ''
+        displayName: user.displayName || userInfo.displayName || '',
+        photoURL: user.photoURL || '',
+        ...(userInfo.credenciado_Id && {
+          credenciado_Id: userInfo.credenciado_Id
+        }) // Use userInfo.credenciado_Id
       };
 
       setUser(payload);
@@ -161,7 +230,7 @@ export default function UserAuthForm() {
     }
   };
 
-  // Função de recuperação de senha ajustada
+  // Função de recuperação de senha
   const onResetSubmit = async (data: ResetFormValue) => {
     setResetLoading(true);
     try {
@@ -170,7 +239,7 @@ export default function UserAuthForm() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email: data.emailResetPassword }) // Envio do campo correto
+        body: JSON.stringify({ email: data.emailResetPassword })
       });
 
       if (!response.ok) {
@@ -201,7 +270,7 @@ export default function UserAuthForm() {
           >
             <FormField
               control={resetForm.control}
-              name="emailResetPassword" // Campo renomeado
+              name="emailResetPassword"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email para recuperação</FormLabel>
@@ -210,7 +279,7 @@ export default function UserAuthForm() {
                       type="email"
                       placeholder="Digite seu email..."
                       disabled={resetLoading}
-                      {...field} // Spread correto do field
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />

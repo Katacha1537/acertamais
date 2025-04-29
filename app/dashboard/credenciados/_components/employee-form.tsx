@@ -85,13 +85,12 @@ function maskTelefone(value: string) {
 }
 
 function isValidCPF(cpf: string): boolean {
-  cpf = cpf.replace(/\D/g, ''); // Remove caracteres não numéricos
+  cpf = cpf.replace(/\D/g, '');
   if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
 
   let sum = 0;
   let remainder;
 
-  // Primeiro dígito verificador
   for (let i = 1; i <= 9; i++) {
     sum += parseInt(cpf.charAt(i - 1)) * (11 - i);
   }
@@ -99,7 +98,6 @@ function isValidCPF(cpf: string): boolean {
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cpf.charAt(9))) return false;
 
-  // Segundo dígito verificador
   sum = 0;
   for (let i = 1; i <= 10; i++) {
     sum += parseInt(cpf.charAt(i - 1)) * (12 - i);
@@ -112,7 +110,7 @@ function isValidCPF(cpf: string): boolean {
 }
 
 function isValidCNPJ(cnpj: string): boolean {
-  cnpj = cnpj.replace(/\D/g, ''); // Remove caracteres não numéricos
+  cnpj = cnpj.replace(/\D/g, '');
   if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
 
   let length = cnpj.length - 2;
@@ -121,7 +119,6 @@ function isValidCNPJ(cnpj: string): boolean {
   let sum = 0;
   let pos = length - 7;
 
-  // Primeiro dígito verificador
   for (let i = length; i >= 1; i--) {
     sum += parseInt(numbers.charAt(length - i)) * pos--;
     if (pos < 2) pos = 9;
@@ -129,7 +126,6 @@ function isValidCNPJ(cnpj: string): boolean {
   let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
   if (result !== parseInt(digits.charAt(0))) return false;
 
-  // Segundo dígito verificador
   length = length + 1;
   numbers = cnpj.substring(0, length);
   sum = 0;
@@ -144,8 +140,6 @@ function isValidCNPJ(cnpj: string): boolean {
   return true;
 }
 
-// Schema de Validação com Zod
-// Schema de Validação com Zod
 // Schema de Validação com Zod
 const formSchema = z
   .object({
@@ -193,7 +187,7 @@ const formSchema = z
     }),
     telefone: z
       .string()
-      .min(13, { message: 'Telefone deve ter pelo menos 10 caracteres.' }),
+      .min(13, { message: 'Telefone deve ter pelo menos 13 caracteres.' }),
     contatoRH: z
       .object({
         nome: z
@@ -209,9 +203,7 @@ const formSchema = z
           .optional()
       })
       .optional(),
-    segmento: z
-      .string()
-      .min(3, { message: 'Segmento deve ter pelo menos 3 caracteres.' }),
+    segmento: z.string().min(1, { message: 'Selecione um segmento.' }),
     imagem: z
       .instanceof(File)
       .refine((file) => file.type.startsWith('image/'), {
@@ -225,15 +217,35 @@ const formSchema = z
   .refine(
     (data) => {
       if (data.tipoPessoa === 'PJ') {
-        // Para PJ: exige CNPJ e não permite CPF, CEI ou CAEPF
-        return !!data.cnpj && !data.cpf && !data.cei && !data.caepf;
+        return (
+          !!data.cnpj &&
+          !!data.razaoSocial &&
+          !data.cpf &&
+          !data.cei &&
+          !data.caepf &&
+          !data.documentoTipo &&
+          !!data.contatoRH?.nome &&
+          !!data.contatoRH?.email &&
+          !!data.contatoRH?.telefone
+        );
       }
       if (data.tipoPessoa === 'PF') {
         return (
-          data.documentoTipo !== null &&
-          ((data.documentoTipo === 'CPF' && data.cpf) ||
-            (data.documentoTipo === 'CEI' && data.cei) ||
-            (data.documentoTipo === 'CAEPF' && data.caepf))
+          !!data.documentoTipo &&
+          ((data.documentoTipo === 'CPF' &&
+            !!data.cpf &&
+            !data.cei &&
+            !data.caepf) ||
+            (data.documentoTipo === 'CEI' &&
+              !!data.cei &&
+              !data.cpf &&
+              !data.caepf) ||
+            (data.documentoTipo === 'CAEPF' &&
+              !!data.caepf &&
+              !data.cpf &&
+              !data.cei)) &&
+          !data.cnpj &&
+          !data.razaoSocial
         );
       }
       return false;
@@ -242,18 +254,6 @@ const formSchema = z
       message:
         'Preencha os dados corretamente conforme o tipo de pessoa (selecione o tipo de documento e o valor correspondente).',
       path: ['documentoTipo']
-    }
-  )
-  .refine(
-    (data) => {
-      if (data.tipoPessoa === 'PJ') {
-        return !!data.razaoSocial;
-      }
-      return true;
-    },
-    {
-      message: 'Razão Social é obrigatória para Pessoa Jurídica.',
-      path: ['razaoSocial']
     }
   );
 
@@ -286,18 +286,27 @@ export default function CredenciadoForm() {
   const { user } = useUser();
   const tipoPessoa = form.watch('tipoPessoa');
   const documentoTipo = form.watch('documentoTipo');
+  const cnpj = form.watch('cnpj');
 
-  const { isUploading, progress, url, error, uploadImage } = useUploadImage();
+  const {
+    isUploading,
+    progress,
+    url,
+    error: uploadError,
+    uploadImage
+  } = useUploadImage();
   const { documents: accreditors, loading: accreditorsLoading } =
     useFetchDocuments('credenciadoras');
   const { documents: plans, loading: plansLoading } =
     useFetchDocuments('planos');
+  const { documents: segmentos } = useFetchDocuments('segmentos');
 
   const [filteredPlans, setFilteredPlans] = useState(plans);
   const [selectedAccreditor, setSelectedAccreditor] = useState<string | null>(
     null
   );
   const [isAccreditorActive, setIsAccreditorActive] = useState<boolean>(true);
+  const [isFetchingCNPJ, setIsFetchingCNPJ] = useState(false);
 
   const { errors } = form.formState;
 
@@ -328,6 +337,70 @@ export default function CredenciadoForm() {
     }
   }, [selectedAccreditor, plans, user?.role, user?.uid]);
 
+  // Função para consultar a API da ReceitaWS
+  const fetchCNPJData = async (cnpj: string) => {
+    try {
+      setIsFetchingCNPJ(true);
+      const cleanCNPJ = cnpj.replace(/\D/g, '');
+      const response = await fetch(`/api/cnpj/${cleanCNPJ}`);
+
+      if (!response.ok) {
+        throw new Error('Erro ao consultar CNPJ');
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'ERROR') {
+        throw new Error(data.message || 'CNPJ inválido ou não encontrado');
+      }
+
+      form.setValue('razaoSocial', data.nome || '');
+      form.setValue('nomeFantasia', data.fantasia || '');
+      form.setValue('emailAcess', data.email || '');
+      form.setValue(
+        'endereco',
+        `${data.logradouro || ''}, ${data.numero || ''}, ${
+          data.municipio || ''
+        } - ${data.uf || ''}`
+      );
+      form.setValue('cep', maskCEP(data.cep || ''));
+      form.setValue('telefone', maskTelefone(data.telefone || ''));
+      form.setValue('contatoRH.telefone', maskTelefone(data.telefone || ''));
+
+      if (data.atividade_principal && data.atividade_principal.length > 0) {
+        const atividade = data.atividade_principal[0].text;
+        const segmentoMatch = segmentos.find((seg) =>
+          atividade.toLowerCase().includes(seg.nome.toLowerCase())
+        );
+        if (segmentoMatch) {
+          form.setValue('segmento', segmentoMatch.id);
+        }
+      }
+
+      toast.success('Dados do CNPJ preenchidos com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao consultar os dados do CNPJ.'
+      );
+    } finally {
+      setIsFetchingCNPJ(false);
+    }
+  };
+
+  // Monitorar o campo CNPJ
+  useEffect(() => {
+    if (
+      tipoPessoa === 'PJ' &&
+      cnpj &&
+      /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)
+    ) {
+      fetchCNPJData(cnpj);
+    }
+  }, [cnpj, tipoPessoa]);
+
   const { addDocument, loading } = useFirestore({
     collectionName: 'credenciados',
     onSuccess: () => {
@@ -345,26 +418,12 @@ export default function CredenciadoForm() {
     collectionName: 'users'
   });
 
-  const { documents: segmentos } = useFetchDocuments('segmentos');
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      console.log(values);
-      // if (values.tipoPessoa === 'PJ' && values.cnpj) {
-      //   const cnpjClean = values.cnpj.replace(/\D/g, '');
-      //   const response = await fetch(`https://receitaws.com.br/v1/cnpj/${cnpjClean}`);
-      //   const data = await response.json();
-      //   if (data.status === 'ERROR' || !data.nome) {
-      //     toast.error('CNPJ não encontrado ou inválido.');
-      //     return;
-      //   }
-      // }
-
-      // Limpar valores undefined antes de enviar
       const cleanedValues = Object.fromEntries(
         Object.entries(values).filter(
           ([key, value]) => value !== undefined && key !== 'imagem'
-        ) // Remove 'imagem' aqui
+        )
       );
 
       let imageUrl: string | null = null;
@@ -396,7 +455,6 @@ export default function CredenciadoForm() {
         return;
       }
 
-      // Criar firestoreData sem incluir 'imagem' diretamente
       const firestoreData = {
         ...cleanedValues,
         accrediting_Id:
@@ -408,21 +466,21 @@ export default function CredenciadoForm() {
         imagemUrl: imageUrl || null,
         createdAt: new Date().toISOString(),
         documentoTipo: values.documentoTipo ?? null
-      } as const; // Opcional: 'as const' para ajudar o TypeScript a inferir tipos literais
+      };
 
       const dataInsert = {
         uid: userUID,
         role: 'accredited',
         name: values.nomeFantasia,
         email: values.emailAcess,
-        avatar: imageUrl
+        avatar: imageUrl,
+        firstLogin: true
       };
 
       await Promise.all([
         addUser(dataInsert, null),
         addDocument(firestoreData, userUID)
       ]);
-      toast.success('Credenciado cadastrado com sucesso!');
     } catch (err) {
       console.error('Erro geral:', err);
       toast.error('Ocorreu um erro inesperado');
@@ -449,6 +507,7 @@ export default function CredenciadoForm() {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
+                      disabled={isFetchingCNPJ}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -482,6 +541,7 @@ export default function CredenciadoForm() {
                             e.target.files ? e.target.files[0] : null
                           )
                         }
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -510,6 +570,7 @@ export default function CredenciadoForm() {
                           <Input
                             placeholder="Digite a razão social"
                             {...field}
+                            disabled={isFetchingCNPJ}
                           />
                         </FormControl>
                         <FormMessage />
@@ -529,6 +590,7 @@ export default function CredenciadoForm() {
                             onChange={(e) =>
                               field.onChange(maskCNPJ(e.target.value))
                             }
+                            disabled={isFetchingCNPJ}
                           />
                         </FormControl>
                         <FormMessage />
@@ -548,7 +610,8 @@ export default function CredenciadoForm() {
                         <FormLabel>Tipo de Documento</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value ?? ''} // Converte null para undefined
+                          defaultValue={field.value ?? ''}
+                          disabled={isFetchingCNPJ}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -580,6 +643,7 @@ export default function CredenciadoForm() {
                               onChange={(e) =>
                                 field.onChange(maskCPF(e.target.value))
                               }
+                              disabled={isFetchingCNPJ}
                             />
                           </FormControl>
                           <FormMessage />
@@ -602,6 +666,7 @@ export default function CredenciadoForm() {
                               onChange={(e) =>
                                 field.onChange(maskCEI(e.target.value))
                               }
+                              disabled={isFetchingCNPJ}
                             />
                           </FormControl>
                           <FormMessage />
@@ -624,6 +689,7 @@ export default function CredenciadoForm() {
                               onChange={(e) =>
                                 field.onChange(maskCAEPF(e.target.value))
                               }
+                              disabled={isFetchingCNPJ}
                             />
                           </FormControl>
                           <FormMessage />
@@ -650,6 +716,7 @@ export default function CredenciadoForm() {
                             : 'Digite seu nome'
                         }
                         {...field}
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -667,6 +734,7 @@ export default function CredenciadoForm() {
                       <Input
                         placeholder="Digite o email de acesso"
                         {...field}
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -681,7 +749,11 @@ export default function CredenciadoForm() {
                   <FormItem>
                     <FormLabel>Endereço</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o endereço" {...field} />
+                      <Input
+                        placeholder="Digite o endereço"
+                        {...field}
+                        disabled={isFetchingCNPJ}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -701,6 +773,7 @@ export default function CredenciadoForm() {
                         onChange={(e) =>
                           field.onChange(maskCEP(e.target.value))
                         }
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -721,6 +794,7 @@ export default function CredenciadoForm() {
                         onChange={(e) =>
                           field.onChange(maskTelefone(e.target.value))
                         }
+                        disabled={isFetchingCNPJ}
                       />
                     </FormControl>
                     <FormMessage />
@@ -740,6 +814,7 @@ export default function CredenciadoForm() {
                           <Input
                             placeholder="Digite o nome do contato"
                             {...field}
+                            disabled={isFetchingCNPJ}
                           />
                         </FormControl>
                         <FormMessage />
@@ -756,6 +831,7 @@ export default function CredenciadoForm() {
                           <Input
                             placeholder="Digite o email do contato"
                             {...field}
+                            disabled={isFetchingCNPJ}
                           />
                         </FormControl>
                         <FormMessage />
@@ -775,6 +851,7 @@ export default function CredenciadoForm() {
                             onChange={(e) =>
                               field.onChange(maskTelefone(e.target.value))
                             }
+                            disabled={isFetchingCNPJ}
                           />
                         </FormControl>
                         <FormMessage />
@@ -790,7 +867,11 @@ export default function CredenciadoForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Segmento</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue="">
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue=""
+                      disabled={isFetchingCNPJ}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o segmento" />
                       </SelectTrigger>
@@ -841,7 +922,7 @@ export default function CredenciadoForm() {
                             setSelectedAccreditor(value);
                           }}
                           value={field.value}
-                          disabled={accreditorsLoading}
+                          disabled={accreditorsLoading || isFetchingCNPJ}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Selecione uma credenciadora" />
@@ -875,7 +956,9 @@ export default function CredenciadoForm() {
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
-                      disabled={isAccreditorActive || plansLoading}
+                      disabled={
+                        isAccreditorActive || plansLoading || isFetchingCNPJ
+                      }
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -910,7 +993,10 @@ export default function CredenciadoForm() {
               </div>
             )}
 
-            <Button disabled={loading || isUploading} type="submit">
+            <Button
+              disabled={loading || isUploading || isFetchingCNPJ}
+              type="submit"
+            >
               {loading
                 ? `Cadastrando credenciado - ${progress}%`
                 : 'Cadastrar Credenciado'}

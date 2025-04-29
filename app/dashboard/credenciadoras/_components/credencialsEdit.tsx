@@ -29,19 +29,19 @@ import * as z from 'zod';
 
 function maskCEP(value: string) {
   return value
-    .replace(/\D/g, '') // Remove todos os caracteres não numéricos
-    .replace(/(\d{5})(\d)/, '$1-$2') // Aplica o hífen após os 5 primeiros dígitos
-    .substring(0, 9); // Limita o tamanho a 9 caracteres
+    .replace(/\D/g, '')
+    .replace(/(\d{5})(\d)/, '$1-$2')
+    .substring(0, 9);
 }
 
 function maskCNPJ(value: string) {
   return value
-    .replace(/\D/g, '') // Remove todos os caracteres não numéricos
-    .replace(/(\d{2})(\d)/, '$1.$2') // Adiciona o ponto após os 2 primeiros números
-    .replace(/(\d{3})(\d)/, '$1.$2') // Adiciona o ponto após os 3 próximos números
-    .replace(/(\d{3})(\d)/, '$1/$2') // Adiciona a barra após os 3 próximos números
-    .replace(/(\d{4})(\d{2})$/, '$1-$2') // Adiciona o hífen após os 4 próximos números
-    .substring(0, 18); // Limita o tamanho a 18 caracteres (formato final)
+    .replace(/\D/g, '')
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{2})$/, '$1-$2')
+    .substring(0, 18);
 }
 
 function maskTelefone(value: string) {
@@ -52,7 +52,6 @@ function maskTelefone(value: string) {
     .substring(0, 15);
 }
 
-// Esquema de validação
 const formSchema = z.object({
   razaoSocial: z
     .string()
@@ -73,15 +72,6 @@ const formSchema = z.object({
   telefone: z
     .string()
     .min(13, { message: 'Telefone deve ter pelo menos 10 caracteres.' }),
-  contatoRH: z.object({
-    nome: z
-      .string()
-      .min(2, { message: 'Nome do contato deve ter pelo menos 2 caracteres.' }),
-    email: z.string().email({ message: 'Email inválido.' }),
-    telefone: z
-      .string()
-      .min(13, { message: 'Telefone deve ter pelo menos 13 caracteres.' })
-  }),
   contatoResponsavel: z.object({
     nome: z.string().min(2, {
       message: 'Nome do responsável deve ter pelo menos 2 caracteres.'
@@ -103,12 +93,10 @@ export default function CredenciadoFormEdit() {
     ? params.credenciadoraId[0]
     : params.credenciadoraId;
 
-  // Hook para pegar o documento do Firestore
   const { data, loading: dataLoading } = useDocumentById(
     'credenciadoras',
     credenciadoId
   );
-  // Hook para atualizar o documento no Firestore
   const { updateDocument } = useFirestore({
     collectionName: 'credenciadoras',
     onSuccess: () => {
@@ -117,7 +105,7 @@ export default function CredenciadoFormEdit() {
     },
     onError: (err) => {
       console.error(err);
-      toast.error('Erro ao atualizar o credenciadora.');
+      toast.error('Erro ao atualizar a credenciadora.');
     }
   });
 
@@ -138,7 +126,6 @@ export default function CredenciadoFormEdit() {
 
   const { documents: segmentos } = useFetchDocuments('segmentos');
 
-  // Atualiza os valores do formulário quando os dados são carregados
   useEffect(() => {
     if (data) {
       form.reset({
@@ -159,9 +146,14 @@ export default function CredenciadoFormEdit() {
     }
   }, [data, form]);
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    console.log('Form Submitted with values:', values); // Verifique se chega aqui
-    updateDocument(credenciadoId, values);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      console.log(values);
+      await updateDocument(credenciadoId, values);
+    } catch (error) {
+      console.error('Erro ao enviar formulário:', error);
+      toast.error('Erro ao atualizar a credenciadora.');
+    }
   };
 
   return (
@@ -173,15 +165,8 @@ export default function CredenciadoFormEdit() {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit((values) => {
-              console.log('Form Submitted with values:', values); // Verifique se chega aqui
-              updateDocument(credenciadoId, values);
-            })}
-            className="space-y-8"
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {/* Razão Social */}
               <FormField
                 control={form.control}
                 name="razaoSocial"
@@ -195,8 +180,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* Nome Fantasia */}
               <FormField
                 control={form.control}
                 name="nomeFantasia"
@@ -210,7 +193,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="emailAcess"
@@ -228,8 +210,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* CNPJ */}
               <FormField
                 control={form.control}
                 name="cnpj"
@@ -249,8 +229,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* Endereço */}
               <FormField
                 control={form.control}
                 name="endereco"
@@ -264,8 +242,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* CEP */}
               <FormField
                 control={form.control}
                 name="cep"
@@ -285,8 +261,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* Telefone */}
               <FormField
                 control={form.control}
                 name="telefone"
@@ -306,8 +280,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* Contato RH - Nome */}
               <FormField
                 control={form.control}
                 name="contatoResponsavel.nome"
@@ -324,8 +296,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* Contato RH - Email */}
               <FormField
                 control={form.control}
                 name="contatoResponsavel.email"
@@ -342,8 +312,6 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* Contato RH - Telefone */}
               <FormField
                 control={form.control}
                 name="contatoResponsavel.telefone"
@@ -353,7 +321,6 @@ export default function CredenciadoFormEdit() {
                     <FormControl>
                       <Input
                         placeholder="Digite o telefone do contato"
-                        {...field}
                         value={field.value}
                         onChange={(e) =>
                           field.onChange(maskTelefone(e.target.value))
@@ -364,18 +331,13 @@ export default function CredenciadoFormEdit() {
                   </FormItem>
                 )}
               />
-
-              {/* Segmento */}
               <FormField
                 control={form.control}
                 name="segmento"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Segmento</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o segmento" />
                       </SelectTrigger>

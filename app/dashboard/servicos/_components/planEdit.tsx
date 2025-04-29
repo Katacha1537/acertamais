@@ -28,22 +28,19 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
-// Schema de validação
 const formSchema = z.object({
   credenciado_id: z.string().min(1, { message: 'Selecione um credenciado.' }),
   nome_servico: z
     .string()
     .min(2, { message: 'O nome do serviço deve ter pelo menos 2 caracteres.' }),
-  descricao: z
-    .string()
-    .min(10, { message: 'A descrição deve ter pelo menos 10 caracteres.' }),
+  descricao: z.string().optional(),
   preco_original: z
     .number()
     .positive({ message: 'O preço original deve ser positivo.' }),
   preco_com_desconto: z
     .number()
     .positive({ message: 'O preço com desconto deve ser positivo.' }),
-    imagem: z
+  imagem: z
     .instanceof(File)
     .refine((file) => file.type.startsWith('image/'), {
       message: 'Apenas imagens são permitidas.'
@@ -55,13 +52,12 @@ export default function ServicoFormEdit() {
   const params = useParams();
   const router = useRouter();
 
-const [existingImage, setExistingImage] = useState<string | null>(null);
+  const [existingImage, setExistingImage] = useState<string | null>(null);
   const { isUploading, progress, uploadImage } = useUploadImage();
 
   const servicoId = Array.isArray(params.planId)
     ? params.planId[0]
     : params.planId;
-  // Hook para pegar o documento do Firestore
   const {
     data,
     loading: dataLoading,
@@ -73,7 +69,6 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
     error: errorCredenciados
   } = useFetchDocuments('credenciados');
 
-  // Hook para atualizar o documento no Firestore
   const { updateDocument, loading: updateLoading } = useFirestore({
     collectionName: 'servicos',
     onSuccess: () => {
@@ -98,7 +93,6 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
     }
   });
 
-  // Atualiza os valores do formulário quando os dados são carregados
   useEffect(() => {
     if (data) {
       form.reset({
@@ -112,19 +106,31 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
     }
   }, [data, form]);
 
-  // Função de submit
+  function parseCurrency(value: string): number | undefined {
+    const numeric = value.replace(/[^\d]/g, '');
+    if (!numeric) return undefined;
+    const parsed = parseFloat((parseInt(numeric, 10) / 100).toFixed(2));
+    return isNaN(parsed) ? undefined : parsed;
+  }
+
+  function formatCurrency(value: number): string {
+    return value.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  }
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       let imageUrl = existingImage;
 
-      // Se houver nova imagem, faz o upload
       if (values.imagem) {
         const newImageUrl = await uploadImage(
           values.imagem,
           'servicos',
           values.nome_servico.replace(/\s+/g, '-').toLowerCase()
         );
-        
+
         if (!newImageUrl) {
           toast.error('Erro ao fazer upload da nova imagem');
           return;
@@ -132,16 +138,13 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
         imageUrl = newImageUrl;
       }
 
-      // Atualiza os dados incluindo a URL da imagem
       const updatedData = {
         ...values,
         imagemUrl: imageUrl
       };
-      
       delete updatedData.imagem;
 
       await updateDocument(servicoId, updatedData);
-
     } catch (err) {
       console.error('Erro ao atualizar:', err);
       toast.error('Erro durante a atualização');
@@ -163,8 +166,6 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-
-{/* Campo de Imagem */}
             <FormField
               control={form.control}
               name="imagem"
@@ -184,32 +185,30 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                     />
                   </FormControl>
                   <FormMessage />
-                  
-                  {/* Preview da imagem */}
                   {(field.value || existingImage) && (
                     <div className="mt-2">
                       <img
-                        src={field.value ? 
-                          URL.createObjectURL(field.value) : 
-                          existingImage || ''}
+                        src={
+                          field.value
+                            ? URL.createObjectURL(field.value)
+                            : existingImage || ''
+                        }
                         alt="Imagem do serviço"
-                        className="w-32 h-32 object-cover rounded-md border"
+                        className="h-32 w-32 rounded-md border object-cover"
                       />
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {!field.value && 'Imagem atual'}
                       </p>
                     </div>
                   )}
-
-                  {/* Progresso do upload */}
                   {isUploading && (
                     <div className="mt-2 space-y-2">
                       <p className="text-sm text-muted-foreground">
                         Enviando imagem... {progress}%
                       </p>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                        <div 
-                          className="h-full bg-primary transition-all duration-300" 
+                        <div
+                          className="h-full bg-primary transition-all duration-300"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -243,6 +242,7 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="nome_servico"
@@ -256,6 +256,7 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="descricao"
@@ -264,15 +265,15 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Descreva o serviço"
+                      placeholder="Descreva o serviço (opcional)"
                       {...field}
-                      className="h-24"
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="preco_original"
@@ -281,11 +282,11 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                   <FormLabel>Preço Original</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
+                      type="text"
                       placeholder="Digite o preço original"
-                      {...field}
+                      value={formatCurrency(field.value || 0)}
                       onChange={(e) =>
-                        field.onChange(Number(e.target.value) || 0)
+                        field.onChange(parseCurrency(e.target.value))
                       }
                     />
                   </FormControl>
@@ -293,6 +294,7 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="preco_com_desconto"
@@ -301,11 +303,11 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                   <FormLabel>Preço com Desconto</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
+                      type="text"
                       placeholder="Digite o preço com desconto"
-                      {...field}
+                      value={formatCurrency(field.value || 0)}
                       onChange={(e) =>
-                        field.onChange(Number(e.target.value) || 0)
+                        field.onChange(parseCurrency(e.target.value))
                       }
                     />
                   </FormControl>
@@ -313,18 +315,17 @@ const [existingImage, setExistingImage] = useState<string | null>(null);
                 </FormItem>
               )}
             />
-            <Button 
-              disabled={updateLoading || isUploading} 
+
+            <Button
+              disabled={updateLoading || isUploading}
               type="submit"
               className="relative"
             >
-              {isUploading ? (
-                `Enviando imagem... ${progress}%`
-              ) : updateLoading ? (
-                'Salvando alterações...'
-              ) : (
-                'Atualizar Serviço'
-              )}
+              {isUploading
+                ? `Enviando imagem... ${progress}%`
+                : updateLoading
+                ? 'Salvando alterações...'
+                : 'Atualizar Serviço'}
             </Button>
           </form>
         </Form>

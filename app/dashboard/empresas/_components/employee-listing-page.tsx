@@ -142,7 +142,8 @@ export default function EmployeeListingPage({}: TEmployeeListingPage) {
               uid: userUid,
               role: 'business',
               name: empresaData.nomeFantasia,
-              email: empresaData.emailAcess
+              email: empresaData.emailAcess,
+              firstLogin: true
             };
 
             await addUser(userInfo, null);

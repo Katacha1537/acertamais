@@ -122,6 +122,7 @@ export default function ServiceListingPage() {
   const totalServices = filteredServices?.length || 0;
 
   // Função para processar o upload do CSV
+  // Função para processar o upload do CSV
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -134,6 +135,18 @@ export default function ServiceListingPage() {
 
         for (const row of csvData) {
           try {
+            // Função auxiliar para converter preços
+            const parsePrice = (price: string | number | undefined): number => {
+              if (!price) return 0;
+              // Remove aspas, espaços e substitui vírgula por ponto
+              const cleanedPrice = String(price)
+                .replace(/['"]+/g, '') // Remove aspas
+                .replace(/\s+/g, '') // Remove espaços
+                .replace(',', '.'); // Substitui vírgula por ponto
+              const parsed = parseFloat(cleanedPrice);
+              return isNaN(parsed) ? 0 : parsed;
+            };
+
             const serviceData = {
               credenciado_id:
                 user?.role === 'accredited'
@@ -144,8 +157,8 @@ export default function ServiceListingPage() {
                     )?.id || '',
               nome_servico: row['nome_servico'] || '',
               descricao: row['descricao'] || '',
-              preco_original: Number(row['preco_original']) || 0,
-              preco_com_desconto: Number(row['preco_com_desconto']) || 0,
+              preco_original: parsePrice(row['preco_original']),
+              preco_com_desconto: parsePrice(row['preco_com_desconto']),
               imagemUrl: row['imagemUrl'] || null,
               createdAt: new Date().toISOString()
             };
@@ -207,34 +220,40 @@ export default function ServiceListingPage() {
             >
               <Plus className="mr-2 h-4 w-4" /> Add Novo Serviço
             </Link>
-            <label
-              className={cn(
-                buttonVariants({ variant: 'default' }),
-                'cursor-pointer'
-              )}
-            >
-              <Upload className="mr-2 h-4 w-4" /> Importar Serviços
-              <input
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-            </label>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={cn(
-                  buttonVariants({ variant: 'default', size: 'icon' })
-                )}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={downloadTemplate}>
-                  Baixar Template
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {user?.role === 'admin' ? (
+              ''
+            ) : (
+              <>
+                <label
+                  className={cn(
+                    buttonVariants({ variant: 'default' }),
+                    'cursor-pointer'
+                  )}
+                >
+                  <Upload className="mr-2 h-4 w-4" /> Importar Serviços
+                  <input
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                </label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className={cn(
+                      buttonVariants({ variant: 'default', size: 'icon' })
+                    )}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={downloadTemplate}>
+                      Baixar Template
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
           </div>
         </div>
         <Separator />

@@ -133,10 +133,12 @@ export const roleRoutes: {
   admin: string;
   business: string;
   accredited: string;
+  user: string;
 } = {
   admin: '/dashboard/overview',
   business: '/dashboard/funcionarios',
-  accredited: '/dashboard/servicos'
+  accredited: '/dashboard/servicos',
+  user: '/dashboard/solicitacions'
 };
 
 export const navItems: NavItem[] = [
@@ -234,6 +236,14 @@ export const navItems: NavItem[] = [
         url: '/dashboard/servicos',
         icon: 'package',
         shortcut: ['p', 'p'],
+        isActive: false,
+        items: []
+      },
+      {
+        title: 'listar Usuários',
+        url: '/dashboard/usuarios',
+        icon: 'package',
+        shortcut: ['u', 'u'],
         isActive: false,
         items: []
       }
