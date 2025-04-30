@@ -4,8 +4,10 @@
 import { auth, db } from '@/service/firebase';
 import {
   collection,
+  DocumentData,
   getDocs,
   onSnapshot,
+  Query,
   query,
   where
 } from 'firebase/firestore';
@@ -55,7 +57,7 @@ export const SolicitacaoProvider = ({
   useEffect(() => {
     if (!user?.uid) return;
 
-    let q;
+    let q: Query<DocumentData>;
 
     if (user.credenciado_Id) {
       // Se user.credenciado_Id existir, usará ele na consulta.
