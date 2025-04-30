@@ -31,8 +31,10 @@ import {
 import {
   collection,
   doc,
+  DocumentData,
   getDoc,
   getDocs,
+  Query,
   query,
   Timestamp,
   updateDoc,
@@ -81,7 +83,10 @@ const SolicitacaoAlertDialog: React.FC = () => {
 
     const fetchSolicitacoes = async () => {
       const baseQuery = collection(db, 'solicitacoes');
-      const q =
+
+      let q: Query<DocumentData>;
+
+      q =
         user.role === 'admin'
           ? query(baseQuery)
           : user.role === 'user'
