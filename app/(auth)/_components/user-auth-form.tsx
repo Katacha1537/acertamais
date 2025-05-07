@@ -46,7 +46,11 @@ const roleRoutes = {
   business: '/dashboard/funcionarios',
   accredited: '/dashboard/servicos',
   accrediting: '/dashboard/planos',
-  user: '/dashboard/solicitacions'
+  user: '/dashboard/solicitacions',
+  adminBusiness: '/dashboard/funcionarios',
+  adminAccredited: '/dashboard/servicos',
+  employeeAccredited: '/dashboard/solicitacions',
+  adminAccrediting: '/dashboard/planos'
 };
 
 type LoginFormValue = z.infer<typeof loginSchema>;
@@ -58,7 +62,15 @@ interface UserDocument {
   email: string | null;
   photoURL: string | null;
   uid: string | null;
-  role: 'business' | 'employee' | 'accredited' | 'admin';
+  role:
+    | 'business'
+    | 'employee'
+    | 'accredited'
+    | 'admin'
+    | 'adminBusiness'
+    | 'adminAccredited'
+    | 'employeeAccredited'
+    | 'adminAccrediting';
   credenciado_Id?: string;
   firstLogin: boolean; // Novo campo para verificar primeiro login
   [key: string]: any;
@@ -190,6 +202,7 @@ export default function UserAuthForm() {
       const payload = {
         email: user.email,
         uid: user.uid,
+        donoId: userInfo.donoId,
         role: userInfo.role,
         displayName: user.displayName || userInfo.displayName || '',
         photoURL: user.photoURL || '',

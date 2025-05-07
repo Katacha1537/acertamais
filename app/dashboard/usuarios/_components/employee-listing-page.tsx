@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import EmployeeTable from './employee-tables';
 
 export default function EmployeeListingPage() {
-  const { user } = useUser(); // Obtém o usuário atual
+  const { user } = useUser();
   const { updateFlag } = useUpdateContext();
   const {
     documents: plans,
@@ -33,12 +33,10 @@ export default function EmployeeListingPage() {
     fetchDoc();
   }, [updateFlag]);
 
-  // Filtra os planos se o user.role for 'accrediting'
+  // Filtra os planos se o user.role for 'user', com base no donoId
   useEffect(() => {
-    if (user?.role === 'user') {
-      const filtered = plans?.filter(
-        (plan) => plan.accrediting_Id === user?.uid
-      );
+    if (user?.uid) {
+      const filtered = plans?.filter((plan) => plan.donoId === user.uid);
       setFilteredPlans(filtered);
     } else {
       setFilteredPlans(plans);
@@ -50,7 +48,7 @@ export default function EmployeeListingPage() {
       <div className="space-y-4">
         <div className="flex items-start justify-between">
           <Heading
-            title={`Usuários (${filteredPlans?.length})`}
+            title={`Usuários (${filteredPlans?.length || 0})`}
             description="Gerenciar Usuários."
           />
 
@@ -65,13 +63,11 @@ export default function EmployeeListingPage() {
 
         {/* Conditional rendering based on loading or error */}
         {loading && <p>Carregando os Usuários...</p>}
-        {updateFlag && <p></p>}
         {error && <p>Erro ao carregar os Usuários</p>}
-
         {!loading && !error && (
           <EmployeeTable
             data={filteredPlans}
-            totalData={filteredPlans?.length}
+            totalData={filteredPlans?.length || 0}
           />
         )}
       </div>

@@ -7,19 +7,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'; // Componentes de dropdown
+} from '@/components/ui/dropdown-menu';
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
 import { useUpdateContext } from '@/context/GlobalUpdateContext.tsx';
 import { useUser } from '@/context/UserContext';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
-import { useFirestore } from '@/hooks/useFirestore'; // Para adicionar documentos
+import { useFirestore } from '@/hooks/useFirestore';
+import { formatCurrency } from '@/lib/formatCurrency';
 import { cn } from '@/lib/utils';
-import { MoreVertical, Plus, Upload } from 'lucide-react'; // Adicionar MoreVertical
+import { MoreVertical, Plus, Upload } from 'lucide-react';
 import Link from 'next/link';
-import Papa from 'papaparse'; // Para parsear CSV
+import Papa from 'papaparse';
 import { ChangeEvent, useEffect, useState } from 'react';
-import { toast } from 'sonner'; // Para notificações
+import { toast } from 'sonner';
 import EmployeeTable from './employee-tables';
 
 export default function ServiceListingPage() {
@@ -47,7 +48,7 @@ export default function ServiceListingPage() {
     collectionName: 'servicos',
     onSuccess: () => {
       toast.success('Serviços importados com sucesso!');
-      fetchDocuments(); // Atualiza a lista após importação
+      fetchDocuments();
     },
     onError: (err) => {
       console.error(err);
@@ -94,7 +95,7 @@ export default function ServiceListingPage() {
         const accreditingName =
           credenciado?.accrediting_name || 'Credenciadora não informada';
 
-        let descontoPorcentagem = '0%';
+        let descontoPorcentagem = '0% OFF';
         if (
           service.preco_original &&
           service.preco_com_desconto &&
@@ -111,7 +112,13 @@ export default function ServiceListingPage() {
           ...service,
           credenciadoName,
           accreditingName,
-          descontoPorcentagem
+          descontoPorcentagem,
+          preco_original_formatado: formatCurrency(
+            Number(service.preco_original)
+          ),
+          preco_com_desconto_formatado: formatCurrency(
+            Number(service.preco_com_desconto)
+          )
         };
       });
 
@@ -121,8 +128,6 @@ export default function ServiceListingPage() {
 
   const totalServices = filteredServices?.length || 0;
 
-  // Função para processar o upload do CSV
-  // Função para processar o upload do CSV
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -135,14 +140,13 @@ export default function ServiceListingPage() {
 
         for (const row of csvData) {
           try {
-            // Função auxiliar para converter preços
             const parsePrice = (price: string | number | undefined): number => {
               if (!price) return 0;
-              // Remove aspas, espaços e substitui vírgula por ponto
               const cleanedPrice = String(price)
-                .replace(/['"]+/g, '') // Remove aspas
-                .replace(/\s+/g, '') // Remove espaços
-                .replace(',', '.'); // Substitui vírgula por ponto
+                .replace(/['"]+/g, '')
+                .replace(/\s+/g, '')
+                .replace(/R\$/g, '')
+                .replace(',', '.');
               const parsed = parseFloat(cleanedPrice);
               return isNaN(parsed) ? 0 : parsed;
             };
@@ -185,7 +189,6 @@ export default function ServiceListingPage() {
     event.target.value = '';
   };
 
-  // Função para baixar o template CSV
   const downloadTemplate = () => {
     const templateHeaders = [
       'nome_servico',

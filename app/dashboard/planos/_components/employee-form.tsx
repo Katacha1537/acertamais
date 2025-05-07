@@ -72,7 +72,11 @@ export default function PlanForm() {
     const dataToSave = {
       ...values,
       accrediting_Id:
-        user?.role === 'accrediting' ? user?.uid : values.accrediting_Id, // Se for acreditador, usa o UID do usuário
+        user?.role === 'accrediting'
+          ? user?.uid
+          : user?.role === 'adminAccrediting'
+          ? user?.donoId
+          : values.accrediting_Id, // Se for acreditador, usa o UID do usuário
       accrediting_name:
         user?.role === 'accrediting'
           ? user?.displayName || null

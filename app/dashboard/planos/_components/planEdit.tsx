@@ -97,7 +97,11 @@ export default function PlanFormEdit() {
     const dataToUpdate = {
       ...values,
       accrediting_Id:
-        user?.role === 'accrediting' ? user?.uid : values.accrediting_Id,
+        user?.role === 'accrediting'
+          ? user?.uid
+          : user?.role === 'adminAccrediting'
+          ? user?.donoId
+          : values.accrediting_Id,
       accrediting_name:
         user?.role === 'accrediting' ? user?.displayName || null : undefined
     };

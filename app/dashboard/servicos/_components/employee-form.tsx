@@ -70,7 +70,11 @@ export default function ServicoForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       credenciado_id:
-        user?.role === 'accredited' ? user?.uid ?? undefined : undefined,
+        user?.role === 'accredited'
+          ? user?.uid ?? undefined
+          : user?.role === 'adminAccredited'
+          ? user?.donoId ?? undefined
+          : undefined,
       nome_servico: '',
       descricao: '',
       preco_original: undefined,

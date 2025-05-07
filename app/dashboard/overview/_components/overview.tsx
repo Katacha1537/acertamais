@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
+import { useUser } from '@/context/UserContext';
 import useFetchDocuments from '@/hooks/useFetchDocuments';
 import {
   Building,
@@ -18,7 +19,18 @@ import {
   ShieldCheck,
   Users
 } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation'; // Adicione useRouter e usePathname
+import { useEffect } from 'react'; // Adicione useEffect
 import * as XLSX from 'xlsx';
+
+// Definição das rotas por papel
+const roleRoutes = {
+  admin: '/dashboard/overview',
+  business: '/dashboard/funcionarios',
+  accredited: '/dashboard/servicos',
+  accrediting: '/dashboard/planos',
+  user: '/dashboard/solicitacions'
+};
 
 // Interfaces para tipagem dos dados
 interface Solicitacao {
@@ -43,15 +55,28 @@ interface Credenciado {
   nomeFantasia: string;
 }
 
-// Interface genérica para o retorno do hook (assumindo que ele não é genérico)
 interface FetchResponse {
-  documents: any[]; // Usaremos type assertions para especificar os tipos
+  documents: any[];
   loading: boolean;
   error: string | null;
 }
 
 export default function OverViewPage() {
-  // Hooks com type assertions para especificar os tipos
+  const { user } = useUser();
+  const router = useRouter();
+  const pathname = usePathname(); // Obtém a rota atual
+
+  // Verifica o papel do usuário e redireciona
+  useEffect(() => {
+    if (user?.role) {
+      const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes];
+      // Só redireciona se a rota atual for diferente da rota correspondente ao papel
+      if (targetRoute && pathname !== targetRoute) {
+        router.push(targetRoute);
+      }
+    }
+  }, [user, router, pathname]);
+
   const {
     documents: empresas,
     loading,
@@ -87,6 +112,7 @@ export default function OverViewPage() {
     loading: boolean;
     error: string | null;
   };
+
   // Função para calcular o Top 5 Empresas com Mais Funcionários
   const getTopEmpresas = (): Empresa[] => {
     if (!empresas) return [];

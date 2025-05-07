@@ -83,41 +83,55 @@ const SolicitacaoAlertDialog: React.FC = () => {
 
     const fetchSolicitacoes = async () => {
       const baseQuery = collection(db, 'solicitacoes');
-
       let q: Query<DocumentData>;
-
-      q =
-        user.role === 'admin'
-          ? query(baseQuery)
-          : user.role === 'user'
-          ? query(baseQuery, where('credenciado_id', '==', user.credenciado_Id))
-          : query(baseQuery, where('credenciado_id', '==', user.uid));
-
-      const snapshot = await getDocs(q);
-      const newSolicitacoes = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Solicitacao[];
-
-      const newClientes: { [key: string]: any } = {};
-      for (const solicitacao of newSolicitacoes) {
-        if (!newClientes[solicitacao.clienteId]) {
-          const clienteRef = doc(db, 'funcionarios', solicitacao.clienteId);
-          const clienteSnap = await getDoc(clienteRef);
-          if (clienteSnap.exists()) {
-            newClientes[solicitacao.clienteId] = clienteSnap.data();
-          }
-        }
+      console.log(user);
+      if (user.role === 'admin') {
+        q = query(baseQuery);
+      } else if (
+        (user.role === 'employeeAccredited' ||
+          user.role === 'adminAccredited') &&
+        user.donoId
+      ) {
+        q = query(baseQuery, where('credenciado_id', '==', user.donoId));
+      } else if (user.uid) {
+        q = query(baseQuery, where('credenciado_id', '==', user.uid));
+      } else {
+        // Handle case where neither donoId nor uid is available
+        console.warn('User data incomplete, skipping query');
+        setSolicitacoes([]);
+        return;
       }
 
-      newSolicitacoes.sort((a, b) => {
-        if (a.status === 'pendente' && b.status !== 'pendente') return -1;
-        if (a.status !== 'pendente' && b.status === 'pendente') return 1;
-        return b.createdAt.seconds - a.createdAt.seconds;
-      });
+      try {
+        const snapshot = await getDocs(q);
+        const newSolicitacoes = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Solicitacao[];
 
-      setClientes(newClientes);
-      setSolicitacoes(newSolicitacoes);
+        const newClientes: { [key: string]: any } = {};
+        for (const solicitacao of newSolicitacoes) {
+          if (!newClientes[solicitacao.clienteId]) {
+            const clienteRef = doc(db, 'funcionarios', solicitacao.clienteId);
+            const clienteSnap = await getDoc(clienteRef);
+            if (clienteSnap.exists()) {
+              newClientes[solicitacao.clienteId] = clienteSnap.data();
+            }
+          }
+        }
+
+        newSolicitacoes.sort((a, b) => {
+          if (a.status === 'pendente' && b.status !== 'pendente') return -1;
+          if (a.status !== 'pendente' && b.status === 'pendente') return 1;
+          return b.createdAt.seconds - a.createdAt.seconds;
+        });
+
+        setClientes(newClientes);
+        setSolicitacoes(newSolicitacoes);
+      } catch (error) {
+        console.error('Error fetching solicitacoes:', error);
+        setSolicitacoes([]);
+      }
     };
 
     fetchSolicitacoes();
@@ -312,7 +326,7 @@ const SolicitacaoAlertDialog: React.FC = () => {
           </Select>
         </div>
       </div>
-      <div className="space-y-4">
+      <div className="max-h-[75vh] space-y-4 overflow-y-auto">
         {filteredSolicitacoes.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500 sm:text-base dark:text-gray-400">
             Nenhuma solicitação encontrada

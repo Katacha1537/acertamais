@@ -70,6 +70,10 @@ export const columns: ColumnDef<Company>[] = [
     header: 'Telefone'
   },
   {
+    accessorKey: 'emailAcess',
+    header: 'E-mail de Acesso'
+  },
+  {
     accessorKey: 'segmento',
     header: 'Segmento'
   },

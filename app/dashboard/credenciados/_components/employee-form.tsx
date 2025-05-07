@@ -258,6 +258,8 @@ const formSchema = z
   );
 
 export default function CredenciadoForm() {
+  const { user } = useUser();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -277,13 +279,17 @@ export default function CredenciadoForm() {
       segmento: '',
       imagem: undefined,
       accrediting_name: '',
-      accrediting_Id: '',
+      accrediting_Id:
+        user?.role === 'accrediting'
+          ? user.uid ?? undefined
+          : user?.role === 'adminAccrediting'
+          ? user.donoId ?? undefined
+          : undefined,
       planos: ''
     }
   });
 
   const router = useRouter();
-  const { user } = useUser();
   const tipoPessoa = form.watch('tipoPessoa');
   const documentoTipo = form.watch('documentoTipo');
   const cnpj = form.watch('cnpj');
@@ -458,7 +464,11 @@ export default function CredenciadoForm() {
       const firestoreData = {
         ...cleanedValues,
         accrediting_Id:
-          user?.role === 'accrediting' ? user?.uid : values.accrediting_Id,
+          user?.role === 'accrediting'
+            ? user?.uid
+            : user?.role === 'adminAccrediting'
+            ? user?.donoId
+            : values.accrediting_Id,
         accrediting_name:
           user?.role === 'accrediting'
             ? user?.displayName || null

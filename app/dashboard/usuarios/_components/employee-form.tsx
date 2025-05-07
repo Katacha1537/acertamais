@@ -10,6 +10,13 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { useUser } from '@/context/UserContext';
 import { useFirestore } from '@/hooks/useFirestore';
 import { createLogin } from '@/lib/createLogin';
@@ -79,7 +86,19 @@ const formSchema = z.object({
     .regex(
       /^\(\d{2}\)\s\d{4,5}-\d{4}$/,
       'Telefone inválido. Use o formato (XX) XXXXX-XXXX.'
-    )
+    ),
+  role: z.enum(
+    [
+      'admin',
+      'adminAccrediting',
+      'adminAccredited',
+      'adminBusiness',
+      'employeeAccredited'
+    ],
+    {
+      errorMap: () => ({ message: 'Selecione um nível de acesso.' })
+    }
+  )
 });
 
 export default function UserForm() {
@@ -87,13 +106,36 @@ export default function UserForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // Define available roles based on user.role
+  const availableRoles = (() => {
+    if (!user?.role) return [];
+    switch (user.role) {
+      case 'admin':
+        return [{ value: 'admin', label: 'Administrador' }];
+      case 'business':
+        return [{ value: 'adminBusiness', label: 'Administrador da Empresa' }];
+      case 'accredited':
+        return [
+          { value: 'adminAccredited', label: 'Administrador do Credenciado' },
+          { value: 'employeeAccredited', label: 'Funcionário do Credenciado' }
+        ];
+      case 'accrediting':
+        return [
+          { value: 'adminAccrediting', label: 'Administrador da Credenciadora' }
+        ];
+      default:
+        return [];
+    }
+  })();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       nome: '',
       email: '',
       cpf: '',
-      telefone: ''
+      telefone: '',
+      role: undefined
     }
   });
 
@@ -119,16 +161,25 @@ export default function UserForm() {
     setLoading(true);
     try {
       const userCreated = await createLogin(values.email);
-      const userInfo = {
+      const userInfo: any = {
         uid: userCreated,
-        role: 'user',
+        role: values.role,
         name: values.nome,
         email: values.email,
-        cpf: values.cpf.replace(/\D/g, ''),
+        cpf: values.cpf,
         telefone: values.telefone,
-        credenciado_Id: user?.uid, // Automatically set credenciado_Id to current user's UID
-        firstLogin: true
+        firstLogin: true,
+        donoId: user?.uid
       };
+
+      // Set entity ID based on user role
+      if (user?.role === 'business') {
+        userInfo.empresa_Id = user.uid;
+      } else if (user?.role === 'accredited') {
+        userInfo.credenciado_Id = user.uid;
+      } else if (user?.role === 'accrediting') {
+        userInfo.credenciadora_Id = user.uid;
+      }
 
       await addUser(userInfo, userCreated);
       await addUsuarios(userInfo, null);
@@ -216,8 +267,35 @@ export default function UserForm() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nível de Acesso</FormLabel>
+                    <FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o nível de acesso" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableRoles.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                              {role.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            <Button disabled={loading} type="submit">
+            <Button disabled={loading || !user?.role} type="submit">
               {loading ? 'Criando Usuário...' : 'Criar Usuário'}
             </Button>
           </form>

@@ -191,11 +191,9 @@ const formSchema = z
       .min(13, { message: 'Telefone deve ter pelo menos 10 caracteres.' }),
     contatoRH: z
       .object({
-        nome: z
-          .string()
-          .min(2, {
-            message: 'Nome do contato deve ter pelo menos 2 caracteres.'
-          }),
+        nome: z.string().min(2, {
+          message: 'Nome do contato deve ter pelo menos 2 caracteres.'
+        }),
         email: z.string().email({ message: 'Email inválido.' }),
         telefone: z
           .string()
@@ -368,7 +366,11 @@ export default function CredenciadoFormEdit() {
         ...values,
         imagemUrl: imageUrl,
         accrediting_Id:
-          user?.role === 'accrediting' ? user?.uid : values.accrediting_Id,
+          user?.role === 'accrediting'
+            ? user?.uid
+            : user?.role === 'adminAccrediting'
+            ? user?.donoId
+            : values.accrediting_Id,
         accrediting_name:
           user?.role === 'accrediting'
             ? user?.displayName || null

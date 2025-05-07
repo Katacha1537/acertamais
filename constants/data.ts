@@ -109,6 +109,9 @@ export type Employee = {
   job: string;
   profile_picture?: string | null; // Profile picture can be a string (URL) or null (if no picture)
   imagemUrl?: string; // Profile picture can be a string (URL) or null (if no picture)
+  isDeleted?: boolean; // Optional, as it may not always exist
+  status?: 'enable' | 'disable'; // Optional, with specific values
+  [key: string]: any; // Allow additional properties if needed
 };
 
 export type Plan = {
@@ -174,7 +177,7 @@ export const navItems: NavItem[] = [
 
     items: [
       {
-        title: 'Listar credenciadoras',
+        title: 'Credenciadoras',
         url: '/dashboard/credenciadoras',
         icon: 'shildCheck',
         shortcut: ['c', 'c'],
@@ -182,7 +185,7 @@ export const navItems: NavItem[] = [
         items: []
       },
       {
-        title: 'listar Planos',
+        title: 'Planos',
         url: '/dashboard/planos',
         icon: 'clipboardList',
         shortcut: ['p', 'p'],
@@ -199,7 +202,7 @@ export const navItems: NavItem[] = [
 
     items: [
       {
-        title: 'listar Empresas',
+        title: 'Empresas',
         url: '/dashboard/empresas',
         icon: 'building',
         shortcut: ['b', 'b'],
@@ -207,7 +210,7 @@ export const navItems: NavItem[] = [
         items: []
       },
       {
-        title: 'listar Funcionários',
+        title: 'Funcionários',
         url: '/dashboard/funcionarios',
         icon: 'user',
         shortcut: ['f', 'f'],
@@ -224,7 +227,7 @@ export const navItems: NavItem[] = [
 
     items: [
       {
-        title: 'listar Crendenciados',
+        title: 'Crendenciados',
         url: '/dashboard/credenciados',
         icon: 'shildCheck',
         shortcut: ['c', 'c'],
@@ -232,21 +235,21 @@ export const navItems: NavItem[] = [
         items: []
       },
       {
-        title: 'listar Serviços',
+        title: 'Serviços',
         url: '/dashboard/servicos',
         icon: 'package',
         shortcut: ['p', 'p'],
         isActive: false,
         items: []
-      },
-      {
-        title: 'listar Usuários',
-        url: '/dashboard/usuarios',
-        icon: 'package',
-        shortcut: ['u', 'u'],
-        isActive: false,
-        items: []
       }
     ]
+  },
+  {
+    title: 'Usuários',
+    url: '/dashboard/usuarios',
+    icon: 'package',
+    shortcut: ['u', 'u'],
+    isActive: false,
+    items: []
   }
 ];

@@ -12,12 +12,17 @@ interface User {
   email: string | null;
   photoURL: string | null;
   uid: string | null;
+  donoId?: string;
   role:
     | 'business'
     | 'employee'
     | 'accredited'
     | 'admin'
     | 'accrediting'
+    | 'adminBusiness'
+    | 'employeeAccredited'
+    | 'adminAccredited'
+    | 'adminAccrediting'
     | 'user'; // Tipando o role
   credenciado_Id?: string;
 }

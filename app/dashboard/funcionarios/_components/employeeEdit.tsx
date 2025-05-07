@@ -1,6 +1,7 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox component
 import {
   Form,
   FormControl,
@@ -30,13 +31,12 @@ import { toast } from 'sonner';
 import * as z from 'zod';
 
 function isValidCPF(cpf: string): boolean {
-  cpf = cpf.replace(/\D/g, ''); // Remove caracteres não numéricos
+  cpf = cpf.replace(/\D/g, '');
   if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
 
   let sum = 0;
   let remainder;
 
-  // Primeiro dígito verificador
   for (let i = 1; i <= 9; i++) {
     sum += parseInt(cpf.charAt(i - 1)) * (11 - i);
   }
@@ -44,7 +44,6 @@ function isValidCPF(cpf: string): boolean {
   if (remainder === 10 || remainder === 11) remainder = 0;
   if (remainder !== parseInt(cpf.charAt(9))) return false;
 
-  // Segundo dígito verificador
   sum = 0;
   for (let i = 1; i <= 10; i++) {
     sum += parseInt(cpf.charAt(i - 1)) * (12 - i);
@@ -56,7 +55,7 @@ function isValidCPF(cpf: string): boolean {
   return true;
 }
 
-// Validação do Formulário
+// Updated Form Schema
 const formSchema = z.object({
   nome: z.string().min(2, {
     message: 'Nome do funcionário deve ter pelo menos 2 caracteres.'
@@ -92,7 +91,8 @@ const formSchema = z.object({
       (val) => (val ? !isNaN(Number(val)) : true),
       'O número de pessoas na casa deve ser um número.'
     ),
-  empresaId: z.string().nullable().optional()
+  empresaId: z.string().nullable().optional(),
+  isActive: z.boolean().optional() // Add isActive to schema
 });
 
 export default function EmployeeFormEdit() {
@@ -135,12 +135,23 @@ export default function EmployeeFormEdit() {
       email: '',
       telefone: '',
       pessoasNaCasa: '',
-      empresaId: user?.role === 'business' ? user.uid : ''
+      empresaId:
+        user?.role === 'business'
+          ? user.uid
+          : user?.role === 'adminBusiness'
+          ? user.donoId
+          : '',
+      isActive: true // Default to true (active)
     }
   });
 
   useEffect(() => {
     if (data && Object.keys(data).length > 0) {
+      // Determine isActive based on isDeleted and status
+      const isDeleted = data.isDeleted ?? false;
+      const status = data.status ?? 'enable';
+      const isActive = !isDeleted && status === 'enable';
+
       form.reset({
         nome: data.nome || '',
         dataNascimento: data.dataNascimento || '',
@@ -149,18 +160,35 @@ export default function EmployeeFormEdit() {
         email: data.email || '',
         telefone: data.telefone || '',
         pessoasNaCasa: data.pessoasNaCasa || '',
-        empresaId: data.empresaId || (user?.role === 'business' ? user.uid : '')
+        empresaId:
+          data.empresaId ||
+          (user?.role === 'business'
+            ? user.uid
+            : user?.role === 'adminBusiness'
+            ? user.donoId
+            : ''),
+        isActive
       });
     }
   }, [data, form, user]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-    const updatedValues = { ...values };
+    const updatedValues = {
+      ...values,
+      // Map isActive to isDeleted and status
+      isDeleted: !values.isActive,
+      status: values.isActive ? 'enable' : 'disabled'
+    };
 
     if (user?.role === 'business' && user?.uid) {
       updatedValues.empresaId = user.uid;
+    } else if (user?.role === 'adminBusiness' && user?.donoId) {
+      updatedValues.empresaId = user.donoId;
     }
+
+    // Remove isActive from the data sent to Firestore
+    delete updatedValues.isActive;
 
     await updateDocument(employeeId, updatedValues);
   }
@@ -363,6 +391,28 @@ export default function EmployeeFormEdit() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Usuário Ativo Checkbox (Only for Admin) */}
+              {user?.role === 'admin' && (
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-medium">
+                        Usuário Ativo?
+                      </FormLabel>
                       <FormMessage />
                     </FormItem>
                   )}

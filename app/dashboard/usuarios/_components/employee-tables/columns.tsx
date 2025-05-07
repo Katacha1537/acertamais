@@ -17,10 +17,6 @@ export const columns: ColumnDef<Employee>[] = [
     header: 'Telefone'
   },
   {
-    accessorKey: 'credenciado_Id',
-    header: 'Credenciado'
-  },
-  {
     id: 'actions',
     cell: ({ row }) => <CellAction data={row.original} />
   }

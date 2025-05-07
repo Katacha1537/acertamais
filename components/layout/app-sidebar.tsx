@@ -213,9 +213,7 @@ export default function AppSidebar() {
           .map((item) => ({
             ...item,
             items: item.items
-              ? item.items.filter(
-                  (subItem) => subItem.title !== 'listar Empresas'
-                )
+              ? item.items.filter((subItem) => subItem.title !== 'Empresas')
               : []
           }));
       case 'accredited':
@@ -229,11 +227,34 @@ export default function AppSidebar() {
             items: item.items
               ? item.items.filter(
                   (subItem) =>
-                    subItem.title === 'listar Serviços' ||
-                    subItem.title === 'listar Usuários'
+                    subItem.title === 'Serviços' || subItem.title === 'Usuários'
                 )
               : []
           }));
+      case 'adminAccredited':
+        return items
+          .filter((item) => item.title !== 'Dashboard')
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
+          .filter((item) => item.title !== 'Empresas')
+          .filter((item) => item.title !== 'Crendenciadoras')
+          .map((item) => ({
+            ...item,
+            items: item.items
+              ? item.items.filter(
+                  (subItem) =>
+                    subItem.title === 'Serviços' || subItem.title === 'Usuários'
+                )
+              : []
+          }));
+      case 'employeeAccredited':
+        return items
+          .filter((item) => item.title !== 'Dashboard')
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
+          .filter((item) => item.title !== 'Empresas')
+          .filter((item) => item.title !== 'Crendenciadoras')
+          .filter((item) => item.title !== 'Credenciados')
+          .filter((item) => item.title !== 'Usuários') // Remove o Dashboard
+          .filter((item) => item.title !== 'Serviços'); // Remove o Dashboard
       case 'user':
         return items
           .filter((item) => item.title !== 'Dashboard')
@@ -250,12 +271,39 @@ export default function AppSidebar() {
             ...item,
             items: item.items
               ? item.items.filter(
-                  (subItem) => subItem.title !== 'Listar credenciadoras'
+                  (subItem) => subItem.title !== 'Credenciadoras'
+                )
+              : []
+          }));
+      case 'adminAccrediting':
+        return items
+          .filter((item) => item.title !== 'Dashboard') // Remove o Dashboard
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
+          .filter((item) => item.title !== 'Solicitações') // Remove o Dashboard
+          .filter((item) => item.title !== 'Usuários') // Remove o Dashboard
+          .map((item) => ({
+            ...item,
+            items: item.items
+              ? item.items.filter(
+                  (subItem) => subItem.title !== 'Credenciadoras'
                 )
               : []
           }));
       case 'admin':
         return items; // Admin tem acesso a todos
+      case 'adminBusiness':
+        return items
+          .filter((item) => item.title !== 'Dashboard') // Remove o Dashboard
+          .filter((item) => item.title !== 'Segmentos') // Remove o Dashboard
+          .filter((item) => item.title !== 'Solicitações') // Remove o Dashboard
+          .filter((item) => item.title !== 'Crendenciadoras') // Remove o Dashboard
+          .filter((item) => item.title !== 'Credenciados') // Remove o Dashboard
+          .map((item) => ({
+            ...item,
+            items: item.items
+              ? item.items.filter((subItem) => subItem.title !== 'Empresas')
+              : []
+          }));
       default:
         return items;
     }
