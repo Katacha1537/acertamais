@@ -46,6 +46,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       await updateDocument(data.id, {
         ...data,
         isDeleted: true,
+        status: 'disabled',
         deletedAt: new Date().toISOString() // Opcional: adicionar data de "exclusão"
       });
       setOpen(false);
