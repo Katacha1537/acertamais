@@ -26,7 +26,7 @@ import { useFirestore } from '@/hooks/useFirestore';
 import useUploadImage from '@/hooks/useUploadImage';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -169,17 +169,17 @@ const formSchema = z
       }),
     cei: z
       .string()
-      .regex(/^\d{2}\.\d{3}\.\d{5}\/\d{2}$/, {
+      .optional()
+      .refine((value) => !value || /^\d{2}\.\d{3}\.\d{5}\/\d{2}$/.test(value), {
         message: 'CEI deve ter o formato correto (XX.XXX.XXXXX/XX).'
-      })
-      .optional(),
+      }),
     caepf: z
       .string()
-      .regex(/^\d{3}\.\d{3}\.\d{3}-\d{3}$/, {
+      .optional()
+      .refine((value) => !value || /^\d{3}\.\d{3}\.\d{3}-\d{3}$/.test(value), {
         message: 'CAEPF deve ter o formato correto (XXX.XXX.XXX-XXX).'
-      })
-      .optional(),
-    documentoTipo: z.enum(['CPF', 'CEI', 'CAEPF']).optional(),
+      }),
+    documentoTipo: z.enum(['CPF', 'CEI', 'CAEPF', '']).optional(),
     endereco: z
       .string()
       .min(5, { message: 'Endereço deve ter pelo menos 5 caracteres.' }),
@@ -200,9 +200,7 @@ const formSchema = z
           .min(13, { message: 'Telefone deve ter pelo menos 13 caracteres.' })
       })
       .optional(),
-    segmento: z
-      .string()
-      .min(3, { message: 'Segmento deve ter pelo menos 3 caracteres.' }),
+    segmento: z.string().min(1, { message: 'Selecione um segmento.' }),
     imagem: z
       .instanceof(File)
       .refine((file) => file.type.startsWith('image/'), {
@@ -216,13 +214,9 @@ const formSchema = z
   .refine(
     (data) => {
       if (data.tipoPessoa === 'PJ') {
-        return !!data.cnpj && !data.cpf && !data.cei && !data.caepf;
+        return !!data.cnpj;
       } else if (data.tipoPessoa === 'PF') {
-        return (
-          (data.cpf || data.cei || data.caepf) &&
-          !data.cnpj &&
-          !!data.documentoTipo
-        );
+        return (data.cpf || data.cei || data.caepf) && !!data.documentoTipo;
       }
       return false;
     },
@@ -267,7 +261,7 @@ export default function CredenciadoFormEdit() {
       cpf: '',
       cei: '',
       caepf: '',
-      documentoTipo: undefined,
+      documentoTipo: '',
       endereco: '',
       cep: '',
       telefone: '',
@@ -282,8 +276,9 @@ export default function CredenciadoFormEdit() {
 
   const tipoPessoa = form.watch('tipoPessoa');
   const documentoTipo = form.watch('documentoTipo');
+  const errors = form.formState.errors;
 
-  const { isUploading, progress, url, uploadImage } = useUploadImage();
+  const { isUploading, progress, uploadImage } = useUploadImage();
   const { documents: accreditors, loading: accreditorsLoading } =
     useFetchDocuments('credenciadoras');
   const { documents: planos, loading: plansLoading } =
@@ -307,7 +302,7 @@ export default function CredenciadoFormEdit() {
         cpf: data.cpf || '',
         cei: data.cei || '',
         caepf: data.caepf || '',
-        documentoTipo: data.documentoTipo || undefined,
+        documentoTipo: data.documentoTipo || '',
         endereco: data.endereco || '',
         cep: data.cep || '',
         telefone: data.telefone || '',
@@ -319,6 +314,7 @@ export default function CredenciadoFormEdit() {
         planos: data.planos || ''
       });
       setSelectedAccreditor(data.accrediting_Id || null);
+      form.trigger(); // Trigger validation after reset
     }
   }, [data, form]);
 
@@ -342,7 +338,18 @@ export default function CredenciadoFormEdit() {
     }
   }, [selectedAccreditor, planos, user?.role, user?.uid]);
 
+  const isFormValid = useMemo(() => {
+    return form.formState.isValid;
+  }, [form.formState.isValid]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!isFormValid) {
+      toast.error('Por favor, corrija os erros no formulário.');
+      return;
+    }
+
+    console.log(values);
+
     try {
       let imageUrl = data?.imagemUrl || null;
 
@@ -810,6 +817,13 @@ export default function CredenciadoFormEdit() {
                           onValueChange={(value) => {
                             field.onChange(value);
                             setSelectedAccreditor(value);
+                            const selectedAccreditorData = accreditors.find(
+                              (acc) => acc.id === value
+                            );
+                            form.setValue(
+                              'accrediting_name',
+                              selectedAccreditorData?.nomeFantasia || ''
+                            );
                           }}
                           value={field.value}
                           disabled={accreditorsLoading}
@@ -881,8 +895,21 @@ export default function CredenciadoFormEdit() {
               </div>
             )}
 
+            {Object.keys(errors).length > 0 && (
+              <div className="mt-4 text-sm text-red-600">
+                <p className="font-semibold">Erros no formulário:</p>
+                <ul className="list-disc pl-5">
+                  {Object.entries(errors).map(([key, error]) => (
+                    <li key={key}>
+                      {key}: {error?.message || 'Campo inválido'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <Button
-              disabled={dataLoading || loading || isUploading}
+              disabled={dataLoading || loading || isUploading || !isFormValid}
               type="submit"
             >
               {loading
