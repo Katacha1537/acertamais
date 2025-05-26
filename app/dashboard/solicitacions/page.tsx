@@ -40,6 +40,7 @@ import {
   updateDoc,
   where
 } from 'firebase/firestore';
+import { Phone } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 interface Service {
@@ -230,11 +231,20 @@ const SolicitacaoAlertDialog: React.FC = () => {
                       {maskCPF(cliente.cpf)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex items-center justify-between">
                     <span className="text-sm">Telefone:</span>
-                    <span className="text-sm font-medium">
+                    <a
+                      href={`https://wa.me/55${cliente.telefone.replace(
+                        /\D/g,
+                        ''
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm font-medium text-green-600 hover:underline"
+                    >
+                      <Phone size={18} />
                       {cliente.telefone}
-                    </span>
+                    </a>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">E-mail:</span>
